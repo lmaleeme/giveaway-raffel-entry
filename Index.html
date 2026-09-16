@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Enter the giveaway</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+ <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.12.3/JsBarcode.all.min.js"></script>
+<style>
+  :root{
+    --deep:#1B1B3A;
+    --deep-2:#26264D;
+    --paper:#F5F1E8;
+    --gold:#E8B54D;
+    --gold-dim:#B98F3B;
+    --ink:#232136;
+    --ink-soft:#5A5570;
+    --plum:#6B4E71;
+    --danger:#C1443C;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;overflow-x:hidden;}
+  .page-backdrop{ position:fixed; inset:0; z-index:0; overflow:hidden; display:none; }
+  .page-backdrop.on{ display:block; }
+  .page-backdrop img, .page-backdrop video{ width:100%; height:100%; object-fit:cover; display:block; }
+  body{
+    background:var(--deep);
+    background-image:
+      radial-gradient(circle at 15% 10%, rgba(232,181,77,0.08), transparent 40%),
+      radial-gradient(circle at 85% 90%, rgba(107,78,113,0.15), transparent 45%);
+    color:var(--paper);
+    font-family:'Inter', sans-serif;
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:40px 16px;
+  }
+  .wrap{ width:100%; max-width:880px; position:relative; z-index:1; }
+  .logo-wrap{ display:none; text-align:center; margin-bottom:18px; }
+  .logo-wrap.on{ display:block; }
+  .logo-wrap img{ max-height:56px; max-width:220px; }
+  .hero-media{ display:none; margin-bottom:28px; border-radius:14px; overflow:hidden; box-shadow:0 20px 50px rgba(0,0,0,0.25); }
+  .hero-media.on{ display:block; }
+  .hero-media img, .hero-media video{ width:100%; height:auto; display:block; }
+  .stub-logo{ display:none; width:100%; height:64px; object-fit:contain; object-position:left center; margin-bottom:16px; }
+  .stub-logo.on{ display:block; }
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--gold);
+    margin:0 0 10px;
+    text-align:center;
+  }
+  h1{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    font-size:clamp(32px,6vw,52px);
+    line-height:1.05;
+    text-align:center;
+    margin:0 0 12px;
+    color:var(--paper);
+  }
+  .sub{
+    text-align:center;
+    color:#C9C6DC;
+    font-size:15px;
+    max-width:460px;
+    margin:0 auto 40px;
+    line-height:1.6;
+  }
+  .ticket{
+    display:grid;
+    grid-template-columns:1fr 2.4fr;
+    background:var(--paper);
+    border-radius:14px;
+    overflow:hidden;
+    box-shadow:0 24px 60px rgba(0,0,0,0.35);
+  }
+  @media (max-width:620px){
+    .ticket{grid-template-columns:1fr;}
+    .stub{order:2;}
+  }
+  .stub{
+    background:var(--deep-2);
+    color:var(--paper);
+    padding:32px 24px;
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+    position:relative;
+    min-width:0;
+  }
+  .perf{
+    position:absolute;
+    top:0; right:-1px; bottom:0;
+    width:2px;
+    background-image:radial-gradient(circle, var(--deep) 2.5px, transparent 2.6px);
+    background-size:16px 16px;
+    background-repeat:repeat-y;
+  }
+  @media (max-width:620px){
+    .perf{ top:auto; bottom:-1px; left:0; right:0; width:auto; height:2px;
+      background-image:radial-gradient(circle, var(--deep) 2.5px, transparent 2.6px);
+      background-size:16px 16px; background-repeat:repeat-x; }
+  }
+  .stub-label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    letter-spacing:0.12em;
+    text-transform:uppercase;
+    color:var(--gold);
+    margin:0 0 8px;
+  }
+  .stub-number{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:28px;
+    letter-spacing:0.04em;
+    color:var(--paper);
+    word-break:break-all;
+    line-height:1.3;
+  }
+  .stub-number span{ color:#63608A; }
+  .stub-foot{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    color:#8B87A8;
+    margin-top:24px;
+  }
+  .form-side{ padding:36px 32px; color:var(--ink); min-width:0; }
+  .form-side h2{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    font-size:20px;
+    margin:0 0 4px;
+  }
+  .form-side p.hint{
+    color:var(--ink-soft);
+    font-size:13px;
+    margin:0 0 22px;
+  }
+  .row{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media (max-width:480px){ .row{ grid-template-columns:1fr; } }
+  .field{ margin-bottom:16px; }
+  label{
+    display:block;
+    font-size:12px;
+    font-weight:500;
+    color:var(--ink-soft);
+    margin-bottom:6px;
+    letter-spacing:0.02em;
+  }
+  input[type=text], input[type=tel], input[type=email], input[type=date], select, textarea{
+    width:100%;
+    border:1.5px solid #DAD4C4;
+    background:#FFFDF9;
+    border-radius:8px;
+    padding:11px 12px;
+    font-size:15px;
+    color:var(--ink);
+    font-family:'Inter', sans-serif;
+  }
+  textarea{ min-height:80px; resize:vertical; }
+  select{
+    appearance:none;
+    -webkit-appearance:none;
+    background-image:url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%235A5570' stroke-width='1.6' fill='none' fill-rule='evenodd' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;
+    background-position:right 14px center;
+    padding-right:34px;
+  }
+  input:focus, select:focus, textarea:focus{
+    outline:none;
+    border-color:var(--plum);
+    box-shadow:0 0 0 3px rgba(107,78,113,0.15);
+  }
+  .optional-tag{
+    font-weight:400;
+    color:#9C97AF;
+    text-transform:none;
+    letter-spacing:0;
+  }
+  .error{ color:var(--danger); font-size:12px; margin-top:5px; display:none; }
+  .field.invalid input, .field.invalid select, .field.invalid textarea{ border-color:var(--danger); }
+  .field.invalid .error{ display:block; }
+
+  .loc-box{
+    border:1.5px dashed #DAD4C4;
+    border-radius:8px;
+    padding:14px;
+    margin-bottom:18px;
+  }
+  .loc-top{ display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+  .loc-title{ font-size:13px; font-weight:500; color:var(--ink); margin:0 0 2px; }
+  .loc-desc{ font-size:12px; color:var(--ink-soft); margin:0; line-height:1.5; }
+  .loc-btn{
+    flex-shrink:0;
+    border:1.5px solid var(--plum);
+    background:transparent;
+    color:var(--plum);
+    font-size:12px;
+    font-weight:500;
+    padding:8px 12px;
+    border-radius:7px;
+    cursor:pointer;
+    font-family:'Inter', sans-serif;
+  }
+  .loc-btn:hover{ background:rgba(107,78,113,0.08); }
+  .loc-btn:disabled{ opacity:0.6; cursor:default; }
+  .loc-status{
+    margin-top:10px;
+    font-size:12px;
+    font-family:'IBM Plex Mono', monospace;
+    color:var(--plum);
+    display:none;
+  }
+  .loc-status.on{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .loc-clear{ background:none; border:none; color:var(--ink-soft); font-size:11px; cursor:pointer; text-decoration:underline; font-family:'Inter', sans-serif; }
+
+  .consent{
+    display:flex;
+    align-items:flex-start;
+    gap:9px;
+    margin-bottom:14px;
+  }
+  .consent input{ margin-top:3px; width:16px; height:16px; flex-shrink:0; }
+  .consent label{ font-size:12px; color:var(--ink-soft); margin:0; line-height:1.5; font-weight:400; }
+  .consent a{ color:var(--plum); }
+
+  button.submit{
+    width:100%;
+    background:var(--plum);
+    color:var(--paper);
+    border:none;
+    border-radius:8px;
+    padding:14px;
+    font-size:15px;
+    font-weight:500;
+    cursor:pointer;
+    font-family:'Inter', sans-serif;
+    transition:transform 0.08s ease, background 0.15s ease;
+  }
+  button.submit:hover{ background:#5B4260; }
+  button.submit:active{ transform:scale(0.99); }
+  button.submit:disabled{ opacity:0.6; cursor:default; }
+
+  .submit-msg{ font-size:12px; margin-top:10px; text-align:center; display:none; }
+  .submit-msg.err{ color:var(--danger); }
+
+  .success{ display:none; padding:36px 32px; text-align:center; min-width:0; }
+  .success.on{ display:block; }
+  #ticketBarcode{ max-width:100%; height:auto; }
+  .form-side.hidden{ display:none; }
+  .success h2{ font-family:'Fraunces', serif; font-size:24px; margin:0 0 8px; }
+  .success p{ color:var(--ink-soft); font-size:14px; line-height:1.6; }
+  .success .num{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:18px;
+    color:var(--plum);
+    margin:16px 0 4px;
+    letter-spacing:0.06em;
+  }
+</style>
+</head>
+<body>
+<div class="page-backdrop" id="pageBackdrop"></div>
+<div class="wrap">
+  <div class="hero-media" id="heroMedia"></div>
+  <p class="eyebrow" id="eyebrowText">Entries close soon</p>
+  <h1 id="mainTitle">Win the giveaway</h1>
+  <p class="sub">Fill in your details below for a chance to win. Takes less than a minute — no purchase necessary.</p>
+
+  <div class="ticket" id="entryTicket">
+    <div class="stub">
+      <div>
+        <img class="stub-logo" id="campaignLogo" src="" alt="Campaign logo">
+        <p class="stub-label">Your ticket</p>
+        <p class="stub-number" id="ticketPreview"><span>Fill in your name to preview</span></p>
+      </div>
+      <p class="stub-foot">Admit one · Giveaway entry</p>
+    </div>
+
+    <div class="form-side" id="formSide">
+      <h2>Your details</h2>
+      <p class="hint">Name and surname are required. Everything else is optional.</p>
+
+      <form id="entryForm" novalidate>
+        <div class="row">
+          <div class="field" id="fieldFirst">
+            <label for="firstName">First name</label>
+            <input type="text" id="firstName" autocomplete="given-name" placeholder="Thandiwe">
+            <p class="error">Enter your first name.</p>
+          </div>
+          <div class="field" id="fieldLast">
+            <label for="lastName">Surname</label>
+            <input type="text" id="lastName" autocomplete="family-name" placeholder="Mokoena">
+            <p class="error">Enter your surname.</p>
+          </div>
+        </div>
+
+        <div class="field" id="fieldMobile">
+          <label for="mobile">Mobile number <span class="optional-tag">(optional)</span></label>
+          <input type="tel" id="mobile" autocomplete="tel" placeholder="082 123 4567">
+          <p class="error">Enter a valid mobile number, or leave this blank.</p>
+        </div>
+
+        <div class="field" id="fieldGender">
+          <label for="gender">Gender <span class="optional-tag">(optional)</span></label>
+          <select id="gender">
+            <option value="" selected>Prefer not to select</option>
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+            <option value="Other pronoun">Other pronoun</option>
+          </select>
+        </div>
+
+        <!-- Campaign-specific fields render here, driven by FieldConfig via getPublicConfig -->
+        <div id="dynamicFields"></div>
+
+        <div class="loc-box">
+          <div class="loc-top">
+            <div>
+              <p class="loc-title">Share your location</p>
+              <p class="loc-desc">Optional — helps us confirm entries in your area. Your browser will ask you to confirm before anything is shared.</p>
+            </div>
+            <button type="button" class="loc-btn" id="locBtn">Share location</button>
+          </div>
+          <div class="loc-status" id="locStatus">
+            <span id="locText"></span>
+            <button type="button" class="loc-clear" id="locClear">Remove</button>
+          </div>
+        </div>
+
+        <div class="consent">
+          <input type="checkbox" id="agreeRules">
+          <label for="agreeRules">I have read and agree to the <a href="rules.html" target="_blank" rel="noopener">Official Competition Rules</a>, including who is eligible to enter and win. <span style="color:var(--danger)">*</span></label>
+        </div>
+        <div class="consent">
+          <input type="checkbox" id="agreePrivacy">
+          <label for="agreePrivacy">I consent to my personal information being processed as described in the <a href="privacy.html" target="_blank" rel="noopener">Privacy Notice</a>, and to being contacted if I win. <span style="color:var(--danger)">*</span></label>
+        </div>
+        <div class="field" id="fieldConsent" style="margin-top:-8px;">
+          <p class="error">Please agree to both before entering.</p>
+        </div>
+
+        <button type="submit" class="submit" id="submitBtn">Enter giveaway</button>
+        <p class="submit-msg err" id="submitErr" style="display:none;">Something went wrong sending your entry. Please try again.</p>
+      </form>
+    </div>
+
+    <div class="success" id="successPanel">
+      <h2>You're entered</h2>
+      <p>Thanks — your entry has been received.</p>
+      <p class="num" id="finalTicket"></p>
+      <svg id="ticketBarcode" style="margin: 4px auto 16px; display:block;"></svg>
+      <button type="button" class="submit" id="downloadBtn" style="margin-bottom:16px;">Download my ticket</button>
+      <p>Winners will be contacted using the mobile number you provided.</p>
+    </div>
+  </div>
+
+  <div class="ticket" id="closedCard" style="display:none;">
+    <div class="form-side" style="grid-column:1/-1; text-align:center;">
+      <h2>Entries are closed</h2>
+      <p class="hint" id="closedText">This giveaway has closed. Thanks for your interest!</p>
+    </div>
+  </div>
+</div>
+
+<script>
+  const CONFIG = {
+    SHEET_ENDPOINT_URL: "https://script.google.com/macros/s/AKfycbzhENIrwrINZx_mhNRmAKVgxEHH_nRM7nl_C3hOv_K3ekCDwgoK2mhKTUjXsVXIbxYPqw/exec"
+  };
+
+  const firstName = document.getElementById('firstName');
+  const lastName = document.getElementById('lastName');
+  const mobile = document.getElementById('mobile');
+  const gender = document.getElementById('gender');
+  const ticketPreview = document.getElementById('ticketPreview');
+  const locBtn = document.getElementById('locBtn');
+  const locStatus = document.getElementById('locStatus');
+  const locText = document.getElementById('locText');
+  const locClear = document.getElementById('locClear');
+  const form = document.getElementById('entryForm');
+  const submitBtn = document.getElementById('submitBtn');
+  const submitErr = document.getElementById('submitErr');
+  const downloadBtn = document.getElementById('downloadBtn');
+
+  let sharedLocation = null; // { lat, lng, suburb }
+  let ticketId = null;
+  let dynamicFieldDefs = []; // populated from getPublicConfig
+  let closingDateValue = ''; // 'YYYY-MM-DD' from ThemeConfig, or '' for no closing date
+
+  function updateClosingState(){
+    const eyebrow = document.getElementById('eyebrowText');
+    const entryTicket = document.getElementById('entryTicket');
+    const closedCard = document.getElementById('closedCard');
+
+    if(!closingDateValue){
+      eyebrow.textContent = 'Entries close soon';
+      entryTicket.style.display = '';
+      closedCard.style.display = 'none';
+      return;
+    }
+
+    const closing = new Date(closingDateValue + 'T23:59:59');
+    if(isNaN(closing.getTime())){
+      eyebrow.textContent = 'Entries close soon';
+      entryTicket.style.display = '';
+      closedCard.style.display = 'none';
+      return;
+    }
+
+    const formatted = closing.toLocaleDateString('en-ZA', { day: 'numeric', month: 'long', year: 'numeric' });
+
+    if(new Date() > closing){
+      entryTicket.style.display = 'none';
+      closedCard.style.display = '';
+      document.getElementById('closedText').textContent = 'This giveaway closed on ' + formatted + '. Thanks for your interest!';
+    } else {
+      eyebrow.textContent = 'Entries close ' + formatted;
+      entryTicket.style.display = '';
+      closedCard.style.display = 'none';
+    }
+  }
+
+  // Catches a tab left open across the closing moment, without needing a page reload.
+  setInterval(updateClosingState, 60000);
+
+  function genTicketId(){
+    const time = Date.now().toString(36).toUpperCase();
+    const rand = Math.random().toString(36).slice(2, 6).toUpperCase();
+    return 'GVA-' + time + '-' + rand;
+  }
+
+  function updatePreview(){
+    const f = firstName.value.trim();
+    const l = lastName.value.trim();
+    if(!f && !l){
+      ticketPreview.innerHTML = '<span>Fill in your name to preview</span>';
+      return;
+    }
+    if(!ticketId) ticketId = genTicketId();
+    ticketPreview.textContent = ticketId;
+  }
+  firstName.addEventListener('input', updatePreview);
+  lastName.addEventListener('input', updatePreview);
+
+  // --- Campaign config (theme + dynamic fields) — fetched fresh on every load ---
+  // A normal (non no-cors) fetch, same pattern proven out by redeem.html/winner.html/
+  // report.html: Apps Script's ContentService JSON response is readable cross-origin.
+  async function loadPublicConfig(){
+    if(!CONFIG.SHEET_ENDPOINT_URL || CONFIG.SHEET_ENDPOINT_URL.indexOf('PASTE_YOUR') !== -1) return;
+    try{
+      const res = await fetch(CONFIG.SHEET_ENDPOINT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ action: 'getPublicConfig' })
+      });
+      const data = await res.json();
+      if(data.status === 'ok'){
+        applyTheme(data.theme || {});
+        renderDynamicFields(data.fields || []);
+      }
+    }catch(e){
+      // Config fetch failing shouldn't block entries — the form still works with defaults.
+    }
+  }
+
+  function applyTheme(theme){
+    const root = document.documentElement.style;
+    if(theme.primaryColor) root.setProperty('--plum', theme.primaryColor);
+    if(theme.accentColor) root.setProperty('--gold', theme.accentColor);
+    if(theme.backgroundColor) root.setProperty('--deep', theme.backgroundColor);
+    if(theme.textColor) root.setProperty('--paper', theme.textColor);
+    if(theme.campaignTitle) document.getElementById('mainTitle').textContent = theme.campaignTitle;
+
+    closingDateValue = theme.closingDate || '';
+    updateClosingState();
+
+    const logo = document.getElementById('campaignLogo');
+    if(theme.logoUrl){
+      logo.src = theme.logoUrl;
+      logo.classList.add('on');
+    } else {
+      logo.classList.remove('on');
+    }
+
+    const heroEl = document.getElementById('heroMedia');
+    heroEl.innerHTML = '';
+    if(theme.heroMediaUrl && theme.heroMediaType && theme.heroMediaType !== 'none'){
+      heroEl.appendChild(buildMediaEl(theme.heroMediaUrl, theme.heroMediaType));
+      heroEl.classList.add('on');
+    } else {
+      heroEl.classList.remove('on');
+    }
+
+    const backdropEl = document.getElementById('pageBackdrop');
+    backdropEl.innerHTML = '';
+    if(theme.backgroundMediaUrl && theme.backgroundMediaType && theme.backgroundMediaType !== 'none'){
+      backdropEl.appendChild(buildMediaEl(theme.backgroundMediaUrl, theme.backgroundMediaType));
+      backdropEl.classList.add('on');
+    } else {
+      backdropEl.classList.remove('on');
+    }
+  }
+
+  function buildMediaEl(url, type){
+    let media;
+    if(type === 'video'){
+      media = document.createElement('video');
+      media.src = url;
+      media.autoplay = true; media.loop = true; media.muted = true; media.playsInline = true;
+    } else {
+      media = document.createElement('img');
+      media.src = url;
+      media.alt = 'Campaign banner';
+    }
+    return media;
+  }
+
+  // Renders campaign-specific fields (from FieldConfig, enabled ones only) into
+  // #dynamicFields, in order. Values are collected on submit by field.key.
+  function renderDynamicFields(fields){
+    dynamicFieldDefs = fields;
+    const container = document.getElementById('dynamicFields');
+    container.innerHTML = '';
+
+    fields.forEach(f => {
+      const wrap = document.createElement('div');
+      wrap.className = 'field';
+      wrap.id = 'dynField_' + f.key;
+
+      const label = document.createElement('label');
+      label.setAttribute('for', 'dyn_' + f.key);
+      label.innerHTML = f.label + (f.required
+        ? ' <span style="color:var(--danger)">*</span>'
+        : ' <span class="optional-tag">(optional)</span>');
+      wrap.appendChild(label);
+
+      let input;
+      if(f.type === 'select'){
+        input = document.createElement('select');
+        const blank = document.createElement('option');
+        blank.value = ''; blank.textContent = 'Select…';
+        input.appendChild(blank);
+        (f.options || '').split(',').map(o => o.trim()).filter(Boolean).forEach(opt => {
+          const o = document.createElement('option');
+          o.value = opt; o.textContent = opt;
+          input.appendChild(o);
+        });
+      } else if(f.type === 'textarea'){
+        input = document.createElement('textarea');
+      } else {
+        input = document.createElement('input');
+        input.type = ['email','date','tel'].includes(f.type) ? f.type : 'text';
+      }
+      input.id = 'dyn_' + f.key;
+      wrap.appendChild(input);
+
+      const err = document.createElement('p');
+      err.className = 'error';
+      err.textContent = 'This field is required.';
+      wrap.appendChild(err);
+
+      container.appendChild(wrap);
+
+      input.addEventListener('input', () => {
+        if(wrap.classList.contains('invalid')) validate();
+      });
+    });
+  }
+
+  // --- Reverse geocoding via OpenStreetMap Nominatim ---
+  // Browsers block scripts from setting a custom User-Agent header on fetch(),
+  // so we rely on the Referer header the browser sends automatically, which
+  // Nominatim's usage policy accepts as an identifier for browser-based apps.
+  async function reverseGeocode(lat, lng){
+    const url = 'https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat='
+      + encodeURIComponent(lat) + '&lon=' + encodeURIComponent(lng) + '&zoom=14&addressdetails=1';
+    const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+    if(!res.ok) throw new Error('Reverse geocode failed: ' + res.status);
+    const data = await res.json();
+    return pickLocationName(data.address || {});
+  }
+
+  // South African OSM data often files ward numbers ("Ward 16") into the same
+  // field regular suburb names use, which makes for inconsistent, not-very-
+  // useful location labels in reports. Skip anything shaped like a ward and
+  // fall through to the next most specific field until we hit a real name.
+  function pickLocationName(a){
+    const candidates = [a.suburb, a.neighbourhood, a.quarter, a.city_district, a.town, a.village, a.city, a.county];
+    const isWardLike = (s) => /\bward\s*\d+\b/i.test((s || '').trim());
+    for(const c of candidates){
+      if(c && !isWardLike(c)) return c;
+    }
+    return '';
+  }
+
+  locBtn.addEventListener('click', () => {
+    if(!navigator.geolocation){
+      locText.textContent = 'Location not supported on this browser.';
+      locStatus.classList.add('on');
+      return;
+    }
+    locBtn.disabled = true;
+    locBtn.textContent = 'Requesting…';
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        sharedLocation = { lat: lat, lng: lng, suburb: '' };
+
+        locText.textContent = 'Location added';
+        locStatus.classList.add('on');
+        locBtn.style.display = 'none';
+
+        try{
+          locText.textContent = 'Looking up suburb…';
+          const suburb = await reverseGeocode(lat, lng);
+          if(sharedLocation){ // still active (not cleared while we waited)
+            sharedLocation.suburb = suburb;
+            locText.textContent = suburb ? ('Location added — ' + suburb) : 'Location added';
+          }
+        }catch(e){
+          if(sharedLocation){
+            locText.textContent = 'Location added';
+          }
+        }
+      },
+      (err) => {
+        locBtn.disabled = false;
+        locBtn.textContent = 'Share location';
+        if(err.code === err.PERMISSION_DENIED){
+          locText.textContent = 'Location permission was denied. You can allow it in your browser settings and try again.';
+        } else if(err.code === err.TIMEOUT){
+          locText.textContent = 'Location took too long to respond. Please try again.';
+        } else {
+          locText.textContent = 'Could not determine your location right now. Please try again.';
+        }
+        locStatus.classList.add('on');
+      },
+      { timeout: 20000, maximumAge: 0 }
+    );
+  });
+
+  locClear.addEventListener('click', () => {
+    sharedLocation = null;
+    locStatus.classList.remove('on');
+    locBtn.style.display = 'inline-block';
+    locBtn.disabled = false;
+    locBtn.textContent = 'Share location';
+  });
+
+  function setInvalid(fieldId, invalid){
+    const el = document.getElementById(fieldId);
+    el.classList.toggle('invalid', invalid);
+  }
+
+  function validate(){
+    let ok = true;
+    if(!firstName.value.trim()){ setInvalid('fieldFirst', true); ok = false; } else setInvalid('fieldFirst', false);
+    if(!lastName.value.trim()){ setInvalid('fieldLast', true); ok = false; } else setInvalid('fieldLast', false);
+
+    // Mobile is optional — only validate format if something was entered.
+    const digits = mobile.value.replace(/\D/g,'');
+    if(mobile.value.trim() && digits.length < 9){ setInvalid('fieldMobile', true); ok = false; } else setInvalid('fieldMobile', false);
+
+    // Dynamic fields — only "required" ones (as set in the Fields admin tab) are enforced.
+    dynamicFieldDefs.forEach(f => {
+      if(!f.required) return;
+      const el = document.getElementById('dyn_' + f.key);
+      if(!el || !el.value.trim()){ setInvalid('dynField_' + f.key, true); ok = false; }
+      else setInvalid('dynField_' + f.key, false);
+    });
+
+    const rulesOk = document.getElementById('agreeRules').checked;
+    const privacyOk = document.getElementById('agreePrivacy').checked;
+    if(!rulesOk || !privacyOk){ setInvalid('fieldConsent', true); ok = false; } else setInvalid('fieldConsent', false);
+
+    return ok;
+  }
+
+  [firstName, lastName, mobile].forEach(el => {
+    el.addEventListener('input', () => {
+      if(el.closest('.field').classList.contains('invalid')) validate();
+    });
+  });
+  document.getElementById('agreeRules').addEventListener('change', validate);
+  document.getElementById('agreePrivacy').addEventListener('change', validate);
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    submitErr.style.display = 'none';
+    if(!validate()) return;
+
+    if(!ticketId) ticketId = genTicketId();
+
+    const payload = {
+      ticketId: ticketId,
+      firstName: firstName.value.trim(),
+      lastName: lastName.value.trim(),
+      mobile: mobile.value.trim(),
+      gender: gender.value,
+      latitude: sharedLocation ? sharedLocation.lat : '',
+      longitude: sharedLocation ? sharedLocation.lng : '',
+      suburb: sharedLocation ? (sharedLocation.suburb || '') : '',
+      submittedAt: new Date().toISOString()
+    };
+
+    // Fold in whatever campaign-specific fields are enabled, keyed by their field.key —
+    // matches how Code.gs looks them up when writing the row.
+    dynamicFieldDefs.forEach(f => {
+      const el = document.getElementById('dyn_' + f.key);
+      payload[f.key] = el ? el.value.trim() : '';
+    });
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Sending…';
+
+    try{
+      if(CONFIG.SHEET_ENDPOINT_URL && CONFIG.SHEET_ENDPOINT_URL.indexOf('PASTE_YOUR') === -1){
+        await fetch(CONFIG.SHEET_ENDPOINT_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify(payload)
+        });
+      }
+      document.getElementById('finalTicket').textContent = ticketId;
+      document.getElementById('formSide').classList.add('hidden');
+      document.getElementById('successPanel').classList.add('on');
+
+      JsBarcode('#ticketBarcode', ticketId, {
+        format: 'CODE128',
+        width: 2,
+        height: 50,
+        displayValue: false,
+        background: 'transparent',
+        lineColor: '#232136'
+      });
+    }catch(err){
+      submitErr.style.display = 'block';
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Enter giveaway';
+    }
+  });
+
+  downloadBtn.addEventListener('click', () => {
+    drawAndDownloadTicket(firstName.value.trim(), lastName.value.trim(), ticketId);
+  });
+
+  function wrapText(ctx, text, x, y, maxWidth, lineHeight){
+    const words = text.split(' ');
+    let line = '';
+    for(let n=0;n<words.length;n++){
+      const testLine = line + words[n] + ' ';
+      if(ctx.measureText(testLine).width > maxWidth && n > 0){
+        ctx.fillText(line, x, y);
+        line = words[n] + ' ';
+        y += lineHeight;
+      } else { line = testLine; }
+    }
+    ctx.fillText(line, x, y);
+  }
+
+  function drawAndDownloadTicket(first, last, id){
+    const canvas = document.createElement('canvas');
+    canvas.width = 900; canvas.height = 380;
+    const ctx = canvas.getContext('2d');
+
+    ctx.fillStyle = '#F5F1E8';
+    ctx.fillRect(0,0,900,380);
+
+    const stubWidth = 260;
+    ctx.fillStyle = '#26264D';
+    ctx.fillRect(0,0,stubWidth,380);
+
+    ctx.fillStyle = '#F5F1E8';
+    for(let y=8; y<380; y+=16){
+      ctx.beginPath();
+      ctx.arc(stubWidth, y, 6, 0, Math.PI*2);
+      ctx.fill();
+    }
+
+    ctx.fillStyle = '#E8B54D';
+    ctx.font = '600 13px monospace';
+    ctx.fillText('YOUR TICKET', 28, 50);
+
+    ctx.fillStyle = '#F5F1E8';
+    ctx.font = '500 18px monospace';
+    wrapText(ctx, id, 28, 90, stubWidth - 56, 24);
+
+    ctx.fillStyle = '#8B87A8';
+    ctx.font = '11px monospace';
+    ctx.fillText('ADMIT ONE', 28, 340);
+    ctx.fillText('GIVEAWAY ENTRY', 28, 356);
+
+    ctx.fillStyle = '#232136';
+    ctx.font = '600 30px Georgia, serif';
+    ctx.fillText("You're entered", stubWidth + 40, 90);
+
+    ctx.fillStyle = '#5A5570';
+    ctx.font = '16px sans-serif';
+    ctx.fillText((first + ' ' + last).trim() || 'Giveaway entrant', stubWidth + 40, 130);
+
+    ctx.fillStyle = '#6B4E71';
+    ctx.font = '500 14px monospace';
+    ctx.fillText(id, stubWidth + 40, 165);
+
+    ctx.fillStyle = '#5A5570';
+    ctx.font = '13px sans-serif';
+    wrapText(ctx, 'Keep this ticket as proof of entry. Winners are contacted on the mobile number provided.', stubWidth + 40, 210, 900 - stubWidth - 80, 20);
+
+    const barcodeCanvas = document.createElement('canvas');
+    JsBarcode(barcodeCanvas, id, {
+      format: 'CODE128',
+      width: 2,
+      height: 60,
+      displayValue: false,
+      background: '#F5F1E8',
+      lineColor: '#232136'
+    });
+    ctx.drawImage(barcodeCanvas, stubWidth + 40, 250, 320, 70);
+
+    const link = document.createElement('a');
+    link.download = 'giveaway-ticket-' + id + '.png';
+    link.href = canvas.toDataURL('image/png');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+  }
+
+  loadPublicConfig();
+</script>
+</body>
+</html>
