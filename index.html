@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Enter the giveaway</title>
+<title>Enter the raffle</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500&display=swap" rel="stylesheet">
@@ -264,6 +264,17 @@
     margin:16px 0 4px;
     letter-spacing:0.06em;
   }
+  .spinner-big{
+    width:36px; height:36px; border-radius:50%;
+    border:3px solid rgba(107,78,113,0.25); border-top-color:var(--plum);
+    animation:spin 0.8s linear infinite;
+  }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  .ticket-row{
+    border:1.5px solid #DAD4C4; border-radius:8px; padding:12px 14px; margin-bottom:10px;
+    font-family:'IBM Plex Mono', monospace; font-size:14px; color:var(--ink);
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+  }
 </style>
 </head>
 <body>
@@ -271,8 +282,8 @@
 <div class="wrap">
   <div class="hero-media" id="heroMedia"></div>
   <p class="eyebrow" id="eyebrowText">Entries close soon</p>
-  <h1 id="mainTitle">Win the giveaway</h1>
-  <p class="sub">Fill in your details below for a chance to win. Takes less than a minute — no purchase necessary.</p>
+  <h1 id="mainTitle">Win the raffle</h1>
+  <p class="sub">Choose how many entries you'd like and fill in your details — payment is quick and secure.</p>
 
   <div class="ticket" id="entryTicket">
     <div class="stub">
@@ -281,7 +292,7 @@
         <p class="stub-label">Your ticket</p>
         <p class="stub-number" id="ticketPreview"><span>Fill in your name to preview</span></p>
       </div>
-      <p class="stub-foot">Admit one · Giveaway entry</p>
+      <p class="stub-foot">Raffle entry</p>
     </div>
 
     <div class="form-side" id="formSide">
@@ -321,6 +332,18 @@
         <!-- Campaign-specific fields render here, driven by FieldConfig via getPublicConfig -->
         <div id="dynamicFields"></div>
 
+        <div class="field" id="fieldQuantity">
+          <label for="quantity">Number of entries</label>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <button type="button" class="loc-btn" id="qtyMinus" style="padding:11px 16px; font-size:16px;">−</button>
+            <input type="number" id="quantity" min="1" step="1" value="1" style="text-align:center; max-width:90px;">
+            <button type="button" class="loc-btn" id="qtyPlus" style="padding:11px 16px; font-size:16px;">+</button>
+          </div>
+          <p class="hint" id="priceHint" style="margin-top:10px; margin-bottom:0;">Loading pricing…</p>
+          <p style="font-size:16px; font-weight:600; color:var(--ink); margin:4px 0 0;">Total: <span id="totalPrice">—</span></p>
+          <p class="error" id="quantityError">Enter a valid number of entries.</p>
+        </div>
+
         <div class="loc-box">
           <div class="loc-top">
             <div>
@@ -347,17 +370,28 @@
           <p class="error">Please agree to both before entering.</p>
         </div>
 
-        <button type="submit" class="submit" id="submitBtn">Enter giveaway</button>
-        <p class="submit-msg err" id="submitErr" style="display:none;">Something went wrong sending your entry. Please try again.</p>
+        <button type="submit" class="submit" id="submitBtn">Pay &amp; enter raffle</button>
+        <p class="submit-msg err" id="submitErr" style="display:none;">Something went wrong starting your payment. Please try again.</p>
       </form>
     </div>
 
+    <div class="success" id="processingPanel">
+      <h2>Confirming your payment…</h2>
+      <p>Please don't close this page — this usually takes just a few seconds.</p>
+      <div class="spinner-big" style="margin:20px auto;"></div>
+    </div>
+
+    <div class="success" id="cancelledPanel">
+      <h2>Payment not completed</h2>
+      <p>Your payment was cancelled or didn't go through, so no entry was created — and you haven't been charged.</p>
+      <button type="button" class="submit" id="tryAgainBtn" style="margin-top:16px;">Try again</button>
+    </div>
+
     <div class="success" id="successPanel">
-      <h2>You're entered</h2>
-      <p>Thanks — your entry has been received.</p>
-      <p class="num" id="finalTicket"></p>
-      <svg id="ticketBarcode" style="margin: 4px auto 16px; display:block;"></svg>
-      <button type="button" class="submit" id="downloadBtn" style="margin-bottom:16px;">Download my ticket</button>
+      <h2>You're entered!</h2>
+      <p id="successSummary">Thanks — your payment was received and your entries are confirmed.</p>
+      <div id="ticketList" style="text-align:left; margin-top:16px;"></div>
+      <button type="button" class="submit" id="downloadBtn" style="margin:16px 0;">Download my tickets</button>
       <p>Winners will be contacted using the mobile number you provided.</p>
     </div>
   </div>
@@ -365,7 +399,7 @@
   <div class="ticket" id="closedCard" style="display:none;">
     <div class="form-side" style="grid-column:1/-1; text-align:center;">
       <h2>Entries are closed</h2>
-      <p class="hint" id="closedText">This giveaway has closed. Thanks for your interest!</p>
+      <p class="hint" id="closedText">This raffle has closed. Thanks for your interest!</p>
     </div>
   </div>
 </div>
@@ -390,9 +424,10 @@
   const downloadBtn = document.getElementById('downloadBtn');
 
   let sharedLocation = null; // { lat, lng, suburb }
-  let ticketId = null;
   let dynamicFieldDefs = []; // populated from getPublicConfig
   let closingDateValue = ''; // 'YYYY-MM-DD' from ThemeConfig, or '' for no closing date
+  let pricePerEntryCents = 0;
+  let maxEntriesPerOrder = 0;
 
   function updateClosingState(){
     const eyebrow = document.getElementById('eyebrowText');
@@ -419,7 +454,7 @@
     if(new Date() > closing){
       entryTicket.style.display = 'none';
       closedCard.style.display = '';
-      document.getElementById('closedText').textContent = 'This giveaway closed on ' + formatted + '. Thanks for your interest!';
+      document.getElementById('closedText').textContent = 'This raffle closed on ' + formatted + '. Thanks for your interest!';
     } else {
       eyebrow.textContent = 'Entries close ' + formatted;
       entryTicket.style.display = '';
@@ -436,18 +471,36 @@
     return 'GVA-' + time + '-' + rand;
   }
 
+  // Tickets are only generated server-side after payment is confirmed, so the
+  // stub preview shows the entrant's name rather than a fake ticket ID.
   function updatePreview(){
     const f = firstName.value.trim();
     const l = lastName.value.trim();
-    if(!f && !l){
-      ticketPreview.innerHTML = '<span>Fill in your name to preview</span>';
-      return;
-    }
-    if(!ticketId) ticketId = genTicketId();
-    ticketPreview.textContent = ticketId;
+    ticketPreview.innerHTML = (f || l) ? (f + ' ' + l).trim() : '<span>Fill in your name to preview</span>';
   }
   firstName.addEventListener('input', updatePreview);
   lastName.addEventListener('input', updatePreview);
+
+  // --- Quantity + live price ---
+  const quantityInput = document.getElementById('quantity');
+  function updatePriceDisplay(){
+    const rand = (pricePerEntryCents / 100);
+    document.getElementById('priceHint').textContent = pricePerEntryCents > 0
+      ? ('R' + rand.toFixed(2) + ' per entry' + (maxEntriesPerOrder > 0 ? ' · max ' + maxEntriesPerOrder + ' per order' : ''))
+      : 'Pricing is not yet available for this raffle.';
+    const qty = parseInt(quantityInput.value, 10) || 0;
+    document.getElementById('totalPrice').textContent = pricePerEntryCents > 0 ? ('R' + (rand * qty).toFixed(2)) : '—';
+  }
+  document.getElementById('qtyMinus').addEventListener('click', () => {
+    quantityInput.value = Math.max(1, (parseInt(quantityInput.value, 10) || 1) - 1);
+    updatePriceDisplay();
+  });
+  document.getElementById('qtyPlus').addEventListener('click', () => {
+    const next = (parseInt(quantityInput.value, 10) || 1) + 1;
+    quantityInput.value = maxEntriesPerOrder > 0 ? Math.min(maxEntriesPerOrder, next) : next;
+    updatePriceDisplay();
+  });
+  quantityInput.addEventListener('input', updatePriceDisplay);
 
   // --- Campaign config (theme + dynamic fields) — fetched fresh on every load ---
   // A normal (non no-cors) fetch, same pattern proven out by redeem.html/winner.html/
@@ -480,6 +533,10 @@
 
     closingDateValue = theme.closingDate || '';
     updateClosingState();
+
+    pricePerEntryCents = Number(theme.pricePerEntryCents) || 0;
+    maxEntriesPerOrder = Number(theme.maxEntriesPerOrder) || 0;
+    updatePriceDisplay();
 
     const logo = document.getElementById('campaignLogo');
     if(theme.logoUrl){
@@ -677,6 +734,11 @@
       else setInvalid('dynField_' + f.key, false);
     });
 
+    const qty = parseInt(quantityInput.value, 10);
+    const qtyOk = qty && qty >= 1 && (maxEntriesPerOrder === 0 || qty <= maxEntriesPerOrder);
+    setInvalid('fieldQuantity', !qtyOk);
+    if(!qtyOk) ok = false;
+
     const rulesOk = document.getElementById('agreeRules').checked;
     const privacyOk = document.getElementById('agreePrivacy').checked;
     if(!rulesOk || !privacyOk){ setInvalid('fieldConsent', true); ok = false; } else setInvalid('fieldConsent', false);
@@ -697,60 +759,135 @@
     submitErr.style.display = 'none';
     if(!validate()) return;
 
-    if(!ticketId) ticketId = genTicketId();
+    if(pricePerEntryCents <= 0){
+      submitErr.textContent = 'Pricing has not been set up for this raffle yet — please check back soon.';
+      submitErr.style.display = 'block';
+      return;
+    }
 
     const payload = {
-      ticketId: ticketId,
+      action: 'createOrder',
       firstName: firstName.value.trim(),
       lastName: lastName.value.trim(),
       mobile: mobile.value.trim(),
       gender: gender.value,
-      latitude: sharedLocation ? sharedLocation.lat : '',
-      longitude: sharedLocation ? sharedLocation.lng : '',
-      suburb: sharedLocation ? (sharedLocation.suburb || '') : '',
-      submittedAt: new Date().toISOString()
+      quantity: parseInt(quantityInput.value, 10),
+      pageUrl: window.location.href
     };
 
-    // Fold in whatever campaign-specific fields are enabled, keyed by their field.key —
-    // matches how Code.gs looks them up when writing the row.
     dynamicFieldDefs.forEach(f => {
       const el = document.getElementById('dyn_' + f.key);
       payload[f.key] = el ? el.value.trim() : '';
     });
 
     submitBtn.disabled = true;
-    submitBtn.textContent = 'Sending…';
+    submitBtn.textContent = 'Starting payment…';
 
     try{
-      if(CONFIG.SHEET_ENDPOINT_URL && CONFIG.SHEET_ENDPOINT_URL.indexOf('PASTE_YOUR') === -1){
-        await fetch(CONFIG.SHEET_ENDPOINT_URL, {
-          method: 'POST',
-          mode: 'no-cors',
-          headers: { 'Content-Type': 'text/plain' },
-          body: JSON.stringify(payload)
-        });
-      }
-      document.getElementById('finalTicket').textContent = ticketId;
-      document.getElementById('formSide').classList.add('hidden');
-      document.getElementById('successPanel').classList.add('on');
-
-      JsBarcode('#ticketBarcode', ticketId, {
-        format: 'CODE128',
-        width: 2,
-        height: 50,
-        displayValue: false,
-        background: 'transparent',
-        lineColor: '#232136'
+      const res = await fetch(CONFIG.SHEET_ENDPOINT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify(payload)
       });
-    }catch(err){
+      const data = await res.json();
+
+      if(data.status === 'ok' && data.redirectUrl){
+        // Leaving the page entirely — Yoco's hosted checkout takes over from here.
+        window.location.href = data.redirectUrl;
+        return;
+      }
+      if(data.status === 'closed'){
+        updateClosingState(); // will already reflect closed since server agrees
+        return;
+      }
+      submitErr.textContent = data.message || 'Could not start payment. Please try again.';
       submitErr.style.display = 'block';
-      submitBtn.disabled = false;
-      submitBtn.textContent = 'Enter giveaway';
+    }catch(err){
+      submitErr.textContent = 'Could not reach the server. Please check your connection and try again.';
+      submitErr.style.display = 'block';
     }
+
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Pay & enter raffle';
+  });
+
+  // --- Post-payment: processing / cancelled / paid ---
+  let confirmedTicketIds = [];
+  let confirmedFirstName = '', confirmedLastName = '';
+
+  function showPanel(id){
+    ['formSide', 'processingPanel', 'cancelledPanel', 'successPanel'].forEach(pid => {
+      const el = document.getElementById(pid);
+      if(pid === 'formSide') el.classList.toggle('hidden', pid !== id);
+      else el.classList.toggle('on', pid === id);
+    });
+  }
+
+  function pollOrderStatus(orderId, attemptsLeft){
+    fetch(CONFIG.SHEET_ENDPOINT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'getOrderStatus', orderId: orderId })
+    })
+      .then(res => res.json())
+      .then(data => {
+        if(data.status === 'paid'){
+          confirmedTicketIds = data.ticketIds || [];
+          confirmedFirstName = data.firstName || '';
+          confirmedLastName = data.lastName || '';
+          renderTickets();
+          showPanel('successPanel');
+          return;
+        }
+        if(data.status === 'not_found' || attemptsLeft <= 0){
+          showPanel('cancelledPanel');
+          document.querySelector('#cancelledPanel p').textContent =
+            "We couldn't confirm this payment yet. If you were charged, please contact us with your order reference — nothing will be double-charged.";
+          return;
+        }
+        // still pending — check again shortly
+        setTimeout(() => pollOrderStatus(orderId, attemptsLeft - 1), 2500);
+      })
+      .catch(() => {
+        setTimeout(() => pollOrderStatus(orderId, attemptsLeft - 1), 2500);
+      });
+  }
+
+  function renderTickets(){
+    const summary = document.getElementById('successSummary');
+    summary.textContent = confirmedTicketIds.length > 1
+      ? ('Thanks — your payment was received and your ' + confirmedTicketIds.length + ' entries are confirmed.')
+      : 'Thanks — your payment was received and your entry is confirmed.';
+
+    const list = document.getElementById('ticketList');
+    list.innerHTML = '';
+    confirmedTicketIds.forEach((tid, i) => {
+      const row = document.createElement('div');
+      row.className = 'ticket-row';
+      const span = document.createElement('span');
+      span.textContent = tid;
+      const svg = document.createElement('svg');
+      svg.id = 'barcode-' + i;
+      row.appendChild(span);
+      row.appendChild(svg);
+      list.appendChild(row);
+    });
+    confirmedTicketIds.forEach((tid, i) => {
+      JsBarcode('#barcode-' + i, tid, {
+        format: 'CODE128', width: 1.4, height: 34, displayValue: false,
+        background: 'transparent', lineColor: '#232136'
+      });
+    });
+  }
+
+  document.getElementById('tryAgainBtn').addEventListener('click', () => {
+    window.location.href = window.location.pathname;
   });
 
   downloadBtn.addEventListener('click', () => {
-    drawAndDownloadTicket(firstName.value.trim(), lastName.value.trim(), ticketId);
+    confirmedTicketIds.forEach((tid, i) => {
+      setTimeout(() => drawAndDownloadTicket(confirmedFirstName, confirmedLastName, tid), i * 400);
+    });
   });
 
   function wrapText(ctx, text, x, y, maxWidth, lineHeight){
@@ -834,6 +971,20 @@
     document.body.removeChild(link);
 
   }
+
+  // On load, check whether we've just come back from Yoco's checkout.
+  (function initFromUrl(){
+    const params = new URLSearchParams(window.location.search);
+    const orderId = params.get('order');
+    if(!orderId) return; // normal fresh visit — form stays as the default state
+
+    if(params.get('cancelled') === '1'){
+      showPanel('cancelledPanel');
+      return;
+    }
+    showPanel('processingPanel');
+    pollOrderStatus(orderId, 20); // ~20 * 2.5s ≈ 50s before giving up
+  })();
 
   loadPublicConfig();
 </script>
