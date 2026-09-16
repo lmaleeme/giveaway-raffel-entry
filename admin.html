@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Campaign Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#12161B; --panel:#1A2028; --panel-alt:#20272F; --border:#2A323C;
+    --text:#E7ECF1; --text-mute:#8B96A3; --accent:#E8A33D; --accent-2:#4FB286;
+    --danger:#E2685C; --good:#34C471; --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  body{ margin:0; background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; -webkit-font-smoothing:antialiased; }
+  .num{ font-family:'IBM Plex Mono',monospace; }
+  input, select, textarea, button{ font-family:'Inter',sans-serif; }
+
+  /* ---- PIN gate ---- */
+  #gate{ min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
+  #gate .box{ width:100%; max-width:320px; }
+  #gate h1{ font-size:20px; margin:0 0 4px; }
+  #gate p{ color:var(--text-mute); font-size:14px; margin:0 0 20px; }
+  #gate input{ width:100%; padding:12px 14px; background:var(--panel); border:1px solid var(--border); border-radius:6px; color:var(--text); font-size:16px; font-family:'IBM Plex Mono',monospace; letter-spacing:2px; }
+  #gate button{ width:100%; margin-top:12px; padding:12px 14px; background:var(--accent); border:none; border-radius:6px; color:#1A1305; font-weight:600; font-size:14px; cursor:pointer; }
+  #gateError{ color:var(--danger); font-size:13px; margin-top:10px; display:none; }
+
+  /* ---- Shell ---- */
+  #shell{ display:none; min-height:100vh; }
+  .sidenav{ width:200px; flex-shrink:0; background:var(--panel); border-right:1px solid var(--border); padding:20px 12px; position:sticky; top:0; height:100vh; }
+  .sidenav h1{ font-size:14px; margin:0 8px 20px; font-weight:600; }
+  .nav-item{ display:block; width:100%; text-align:left; padding:10px 12px; border-radius:7px; border:none; background:transparent; color:var(--text-mute); font-size:14px; cursor:pointer; margin-bottom:4px; }
+  .nav-item:hover{ background:var(--panel-alt); color:var(--text); }
+  .nav-item.active{ background:var(--accent); color:#1A1305; font-weight:600; }
+  #shell.on{ display:flex; }
+
+  .main{ flex:1; min-width:0; padding:28px 32px 60px; max-width:960px; }
+  .tab{ display:none; }
+  .tab.active{ display:block; }
+  h2.section{ font-size:19px; margin:0 0 4px; }
+  p.section-sub{ color:var(--text-mute); font-size:13px; margin:0 0 22px; }
+
+  .card{ background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); padding:20px; margin-bottom:16px; }
+  label{ display:block; font-size:12px; color:var(--text-mute); margin-bottom:6px; }
+  input[type=text], input[type=number], input[type=url], input[type=password], select, textarea{
+    width:100%; padding:10px 12px; border-radius:7px; border:1px solid var(--border);
+    background:var(--panel-alt); color:var(--text); font-size:14px;
+  }
+  textarea{ min-height:70px; resize:vertical; }
+  input:focus, select:focus, textarea:focus{ outline:none; border-color:var(--accent); }
+  input[type=color]{ width:44px; height:36px; padding:2px; border-radius:7px; border:1px solid var(--border); background:var(--panel-alt); cursor:pointer; }
+
+  .field-row{ margin-bottom:16px; }
+  .row{ display:flex; gap:12px; }
+  .row > *{ flex:1; min-width:0; }
+  .color-pair{ display:flex; align-items:center; gap:10px; }
+
+  button.primary{ background:var(--accent); color:#1A1305; border:none; border-radius:7px; padding:11px 18px; font-size:14px; font-weight:600; cursor:pointer; }
+  button.primary:disabled{ opacity:0.55; cursor:default; }
+  button.secondary{ background:var(--panel-alt); color:var(--text); border:1px solid var(--border); border-radius:7px; padding:10px 16px; font-size:13px; cursor:pointer; }
+  button.danger{ background:var(--danger); color:#fff; border:none; border-radius:7px; padding:10px 16px; font-size:13px; cursor:pointer; }
+
+  .msg{ padding:11px 14px; border-radius:7px; font-size:13px; margin-bottom:14px; display:none; }
+  .msg.show{ display:block; }
+  .msg-error{ background:rgba(226,104,92,0.12); color:#ff9c9c; border:1px solid rgba(226,104,92,0.3); }
+  .msg-success{ background:rgba(52,196,113,0.12); color:#7fe3ab; border:1px solid rgba(52,196,113,0.3); }
+  .msg-warn{ background:rgba(232,163,61,0.12); color:#f0c477; border:1px solid rgba(232,163,61,0.3); }
+
+  /* Theme tab */
+  .swatches{ display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+  .swatch{ width:32px; height:32px; border-radius:6px; border:1.5px solid var(--border); cursor:pointer; }
+  .preview-ticket{ display:grid; grid-template-columns:1fr 1.8fr; border-radius:10px; overflow:hidden; margin-top:6px; }
+  .preview-stub{ padding:18px; }
+  .preview-form{ padding:18px; background:#fff; }
+  .preview-eyebrow{ font-family:'IBM Plex Mono',monospace; font-size:10px; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:4px; }
+  .preview-title{ font-size:16px; font-weight:700; margin:0 0 6px; }
+  .preview-btn{ display:inline-block; padding:8px 14px; border-radius:6px; font-size:12px; font-weight:600; margin-top:8px; }
+
+  /* Fields tab */
+  .field-card{ display:grid; grid-template-columns:auto 1fr 120px 90px 70px; gap:12px; align-items:center; padding:12px 14px; border:1px solid var(--border); border-radius:8px; margin-bottom:8px; background:var(--panel-alt); }
+  .field-card .options-row{ grid-column:1/-1; margin-top:8px; }
+  @media (max-width:720px){ .field-card{ grid-template-columns:1fr; } }
+  .switch{ position:relative; width:38px; height:22px; flex-shrink:0; }
+  .switch input{ opacity:0; width:0; height:0; }
+  .slider{ position:absolute; inset:0; background:var(--border); border-radius:22px; cursor:pointer; transition:0.15s; }
+  .slider:before{ content:''; position:absolute; width:16px; height:16px; left:3px; top:3px; background:#fff; border-radius:50%; transition:0.15s; }
+  input:checked + .slider{ background:var(--good); }
+  input:checked + .slider:before{ transform:translateX(16px); }
+
+  /* Winners tab */
+  .stats-grid{ display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:10px; margin-bottom:4px; }
+  .stat{ background:var(--panel-alt); border-radius:8px; padding:12px; text-align:center; }
+  .stat .n{ font-size:1.3rem; font-weight:700; }
+  .stat .l{ font-size:0.7rem; color:var(--text-mute); margin-top:2px; }
+  .radio-group{ display:flex; flex-direction:column; gap:8px; margin:6px 0 16px; }
+  .radio-option{ display:flex; align-items:flex-start; gap:9px; background:var(--panel-alt); border:1px solid var(--border); border-radius:8px; padding:11px 13px; cursor:pointer; }
+  .radio-option input{ margin-top:3px; width:auto; }
+  .radio-option .opt-title{ font-size:0.88rem; font-weight:600; }
+  .radio-option .opt-desc{ font-size:0.76rem; color:var(--text-mute); margin-top:1px; }
+  .radio-option.selected{ border-color:var(--accent); }
+  table{ width:100%; border-collapse:collapse; font-size:0.85rem; }
+  th, td{ text-align:left; padding:9px 8px; border-bottom:1px solid var(--border); }
+  th{ color:var(--text-mute); font-weight:600; font-size:0.72rem; text-transform:uppercase; }
+  .table-wrap{ overflow-x:auto; }
+  .spinner{ width:14px; height:14px; border-radius:50%; border:2px solid rgba(0,0,0,0.25); border-top-color:#1A1305; display:inline-block; animation:spin 0.7s linear infinite; margin-right:7px; vertical-align:middle; }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  .hidden{ display:none; }
+
+  /* Reports tab */
+  .filters{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:18px; }
+  .presets{ display:flex; gap:6px; flex-wrap:wrap; }
+  .preset-btn{ padding:7px 12px; background:var(--panel-alt); border:1px solid var(--border); border-radius:5px; color:var(--text-mute); font-size:13px; cursor:pointer; }
+  .preset-btn.active{ background:var(--accent); color:#1A1305; border-color:var(--accent); font-weight:600; }
+  .custom-dates{ display:none; gap:6px; align-items:center; }
+  .custom-dates.show{ display:flex; }
+  .stat-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:1px; background:var(--border); border:1px solid var(--border); border-radius:8px; overflow:hidden; margin-bottom:20px; }
+  .stat2{ background:var(--panel); padding:16px; }
+  .stat2 .val{ font-size:26px; font-weight:600; }
+  .stat2 .val.accent{ color:var(--accent); }
+  .stat2 .lbl{ color:var(--text-mute); font-size:12px; margin-top:2px; }
+  .split-row{ display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:20px; }
+  @media (max-width:640px){ .split-row{ grid-template-columns:1fr; } }
+  .gender-bars, .daychart{ border:1px solid var(--border); border-radius:8px; padding:14px 16px; background:var(--panel); }
+  .gbar-row{ margin-bottom:10px; }
+  .gbar-top{ display:flex; justify-content:space-between; font-size:13px; margin-bottom:4px; }
+  .gbar-track{ height:6px; background:var(--panel-alt); border-radius:3px; overflow:hidden; }
+  .gbar-fill{ height:100%; background:var(--accent); }
+  .daybar-row{ display:flex; align-items:center; gap:10px; margin-bottom:6px; font-size:12px; }
+  .daybar-date{ width:78px; color:var(--text-mute); flex-shrink:0; }
+  .daybar-track{ flex:1; background:var(--panel-alt); border-radius:3px; height:14px; }
+  .daybar-fill{ height:100%; background:var(--accent-2); border-radius:3px; }
+  .daybar-count{ width:32px; text-align:right; flex-shrink:0; }
+  .loc-table-wrap{ border:1px solid var(--border); border-radius:8px; background:var(--panel); overflow-x:auto; margin-bottom:20px; }
+  table.loc-table th, table.loc-table td{ text-align:right; white-space:nowrap; }
+  table.loc-table th:first-child, table.loc-table td:first-child{ text-align:left; }
+  table.loc-table tbody tr{ cursor:pointer; }
+  table.loc-table tbody tr:hover{ background:var(--panel-alt); }
+  .empty{ color:var(--text-mute); font-size:13px; padding:12px 0; }
+</style>
+</head>
+<body>
+
+<div id="gate">
+  <div class="box">
+    <h1>Campaign admin</h1>
+    <p>Enter the admin PIN to continue.</p>
+    <input type="password" id="pinInput" inputmode="numeric" placeholder="PIN">
+    <button id="unlockBtn" onclick="checkPin()">Unlock</button>
+    <div id="gateError" class="msg msg-error"></div>
+  </div>
+</div>
+
+<div id="shell">
+  <div class="sidenav">
+    <h1>Campaign admin</h1>
+    <button class="nav-item active" data-tab="theme" onclick="switchTab('theme')">Theme</button>
+    <button class="nav-item" data-tab="fields" onclick="switchTab('fields')">Fields</button>
+    <button class="nav-item" data-tab="winners" onclick="switchTab('winners')">Winners</button>
+    <button class="nav-item" data-tab="reports" onclick="switchTab('reports')">Reports</button>
+  </div>
+
+  <div class="main">
+
+    <!-- ===================== THEME TAB ===================== -->
+    <div class="tab active" id="tab-theme">
+      <h2 class="section">Theme</h2>
+      <p class="section-sub">Colors and copy applied to the public entry form. Changes take effect the next time someone loads it — no redeploy needed.</p>
+
+      <div id="themeMsg" class="msg"></div>
+
+      <div class="card">
+        <div class="field-row">
+          <label for="campaignTitle">Campaign title</label>
+          <input type="text" id="campaignTitle" placeholder="Win the giveaway">
+        </div>
+        <div class="field-row">
+          <label for="closingDate">Entries close on <span style="color:var(--text-mute)">(leave blank for no closing date)</span></label>
+          <input type="date" id="closingDate">
+          <p style="font-size:11px; color:var(--text-mute); margin:6px 0 0;">Entries are accepted through the end of this day. After it passes, the form is replaced with a closed message — for both new visitors and anyone with the page already open.</p>
+        </div>
+        <div class="row">
+          <div class="field-row">
+            <label for="pricePerEntry">Price per entry (ZAR)</label>
+            <input type="number" id="pricePerEntry" min="0" step="0.01" placeholder="20.00">
+            <p style="font-size:11px; color:var(--text-mute); margin:6px 0 0;">Purchases are blocked until this is set to a real amount above R0.</p>
+          </div>
+          <div class="field-row">
+            <label for="maxEntriesPerOrder">Max entries per order</label>
+            <input type="number" id="maxEntriesPerOrder" min="0" step="1" placeholder="0">
+            <p style="font-size:11px; color:var(--text-mute); margin:6px 0 0;">0 means no limit.</p>
+          </div>
+        </div>
+        <div class="row">
+          <div class="field-row">
+            <label for="primaryColor">Primary color</label>
+            <div class="color-pair">
+              <input type="color" id="primaryColorPicker">
+              <input type="text" id="primaryColor" placeholder="#6B4E71">
+            </div>
+          </div>
+          <div class="field-row">
+            <label for="accentColor">Accent color</label>
+            <div class="color-pair">
+              <input type="color" id="accentColorPicker">
+              <input type="text" id="accentColor" placeholder="#E8B54D">
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="field-row">
+            <label for="backgroundColor">Background color</label>
+            <div class="color-pair">
+              <input type="color" id="backgroundColorPicker">
+              <input type="text" id="backgroundColor" placeholder="#1B1B3A">
+            </div>
+          </div>
+          <div class="field-row">
+            <label for="textColor">Text color</label>
+            <div class="color-pair">
+              <input type="color" id="textColorPicker">
+              <input type="text" id="textColor" placeholder="#F5F1E8">
+            </div>
+          </div>
+        </div>
+        <div class="field-row">
+          <label for="logoUrl">Logo URL <span style="color:var(--text-mute)">(hosted image link — not uploaded here)</span></label>
+          <input type="url" id="logoUrl" placeholder="https://...">
+          <p style="font-size:11px; color:var(--text-mute); margin:6px 0 0;">Renders in a fixed landscape band on the ticket stub. Best results: a transparent-background PNG, wider than tall (roughly 3:1, e.g. 300×100px) — it'll be scaled to fit without stretching, but a very tall/square logo will look small since only the width fills.</p>
+        </div>
+        <div class="row">
+          <div class="field-row" style="flex:2;">
+            <label for="heroMediaUrl">Hero banner URL <span style="color:var(--text-mute)">(hosted image or video link)</span></label>
+            <input type="url" id="heroMediaUrl" placeholder="https://...">
+            <p style="font-size:11px; color:var(--text-mute); margin:6px 0 0;">Landscape orientation, roughly 16:9 (e.g. 1600×900px). Keep video files small (under ~5MB) for fast loading on mobile data.</p>
+          </div>
+          <div class="field-row">
+            <label for="heroMediaType">Hero type</label>
+            <select id="heroMediaType">
+              <option value="none">None</option>
+              <option value="image">Image</option>
+              <option value="video">Looped video</option>
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <div class="field-row" style="flex:2;">
+            <label for="backgroundMediaUrl">Page background media URL <span style="color:var(--text-mute)">(fills the whole page, form floats on top)</span></label>
+            <input type="url" id="backgroundMediaUrl" placeholder="https://...">
+            <p style="font-size:11px; color:var(--text-mute); margin:6px 0 0;">Fills the full browser window behind everything, cropped to fit on any screen size. Separate from the hero banner above — you can use either, both, or neither.</p>
+          </div>
+          <div class="field-row">
+            <label for="backgroundMediaType">Background type</label>
+            <select id="backgroundMediaType">
+              <option value="none">None</option>
+              <option value="image">Image</option>
+              <option value="video">Looped video</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field-row">
+          <label>Pick colors from an image <span style="color:var(--text-mute)">(sampled in your browser — nothing is uploaded)</span></label>
+          <input type="file" id="logoSample" accept="image/*">
+          <div class="swatches" id="swatches"></div>
+        </div>
+
+        <button class="primary" id="saveThemeBtn" onclick="saveTheme()">Save theme</button>
+      </div>
+
+      <div class="card">
+        <label style="margin-bottom:10px;">Live preview</label>
+        <div class="preview-ticket" id="previewTicket">
+          <div class="preview-stub">
+            <div class="preview-eyebrow">Your ticket</div>
+            <div class="preview-title">GVA-XXXX</div>
+          </div>
+          <div class="preview-form">
+            <div class="preview-eyebrow" id="previewEyebrow" style="color:#999">Entries close soon</div>
+            <div class="preview-title" id="previewTitleText" style="color:#232136">Win the giveaway</div>
+            <span class="preview-btn" id="previewBtn">Enter giveaway</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== FIELDS TAB ===================== -->
+    <div class="tab" id="tab-fields">
+      <h2 class="section">Fields</h2>
+      <p class="section-sub">Turn on the extra questions this campaign needs. Name, surname, mobile, gender, and location always stay on — they're core to how draws and reports work.</p>
+
+      <div id="fieldsMsg" class="msg"></div>
+
+      <div id="fieldsList"></div>
+
+      <button class="primary" id="saveFieldsBtn" onclick="saveFields()">Save fields</button>
+    </div>
+
+    <!-- ===================== WINNERS TAB ===================== -->
+    <div class="tab" id="tab-winners">
+      <h2 class="section">Winners</h2>
+      <p class="section-sub">Randomly select winners from eligible entries.</p>
+
+      <div class="card">
+        <div class="stats-grid" id="statsGrid">
+          <div class="stat"><div class="n" id="statEligible">–</div><div class="l">Eligible entries</div></div>
+          <div class="stat"><div class="n" id="statUnique">–</div><div class="l">Eligible people</div></div>
+          <div class="stat"><div class="n" id="statWinners">–</div><div class="l">Winners so far</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <label for="countInput">Number of winners to select</label>
+        <input type="number" id="countInput" min="1" step="1" placeholder="e.g. 5">
+
+        <div class="radio-group">
+          <label class="radio-option selected" id="optUnlimited">
+            <input type="radio" name="mode" value="unlimited" checked onchange="updateModeSelection()">
+            <div><div class="opt-title">No limit per person</div><div class="opt-desc">Every ticket is an independent chance, even for repeat entrants.</div></div>
+          </label>
+          <label class="radio-option" id="optUnique">
+            <input type="radio" name="mode" value="unique" onchange="updateModeSelection()">
+            <div><div class="opt-title">One winner per unique mobile number</div><div class="opt-desc">Each person can only be drawn once, regardless of ticket count.</div></div>
+          </label>
+        </div>
+
+        <div id="drawError" class="msg msg-error"></div>
+        <button class="primary" id="drawBtn" onclick="drawWinners()">Draw winners</button>
+      </div>
+
+      <div class="card hidden" id="previewCard">
+        <div class="msg msg-warn show">This is a preview. Nothing has been saved yet.</div>
+        <div class="table-wrap">
+          <table><thead><tr><th>Ticket ID</th><th>Name</th><th>Mobile</th><th>Suburb</th></tr></thead><tbody id="previewBody"></tbody></table>
+        </div>
+        <div class="row" style="margin-top:14px;">
+          <button class="secondary" onclick="redraw()">Redraw</button>
+          <button class="primary" id="confirmBtn" onclick="confirmWinners()">Confirm &amp; save</button>
+        </div>
+      </div>
+
+      <div class="card hidden" id="successCard">
+        <div class="msg msg-success show" id="successMsg"></div>
+        <div class="table-wrap">
+          <table><thead><tr><th>Ticket ID</th><th>Name</th><th>Mobile</th><th>Suburb</th></tr></thead><tbody id="successBody"></tbody></table>
+        </div>
+        <p style="font-size:0.78rem; color:var(--text-mute); margin-top:10px;">Full mobile numbers shown here for winner follow-up. Also recorded in the sheet.</p>
+        <button class="secondary" style="margin-top:14px;" onclick="downloadWinnersCsv()">Download winner list (CSV)</button>
+        <button class="secondary" style="margin-top:8px;" onclick="resetWinnersPanel()">Run another draw</button>
+      </div>
+    </div>
+
+    <!-- ===================== REPORTS TAB ===================== -->
+    <div class="tab" id="tab-reports">
+      <h2 class="section">Reports</h2>
+      <div style="color:var(--text-mute); font-size:12px; margin-bottom:16px;" id="updatedAt"></div>
+
+      <div class="filters">
+        <div class="presets">
+          <button class="preset-btn active" data-preset="today" onclick="setPreset('today')">Today (12pm–12pm)</button>
+          <button class="preset-btn" data-preset="week" onclick="setPreset('week')">This week</button>
+          <button class="preset-btn" data-preset="campaign" onclick="setPreset('campaign')">Full campaign</button>
+          <button class="preset-btn" data-preset="custom" onclick="setPreset('custom')">Custom</button>
+        </div>
+        <div class="custom-dates" id="customDates">
+          <label style="margin:0;">From</label><input type="date" id="startDate">
+          <label style="margin:0;">To</label><input type="date" id="endDate">
+        </div>
+        <select id="genderFilter" onchange="loadReport()"><option value="All">All genders</option></select>
+        <select id="locationFilter" onchange="loadReport()"><option value="All">All locations</option></select>
+      </div>
+
+      <div id="loadError" class="msg msg-error">Couldn't load the report. Check your connection and try again.</div>
+
+      <h2 class="section" style="font-size:13px; color:var(--text-mute);">Selected period</h2>
+      <div class="stat-grid">
+        <div class="stat2"><div class="val accent" id="periodTotal">–</div><div class="lbl">Total entries</div></div>
+        <div class="stat2"><div class="val" id="periodUnique">–</div><div class="lbl">Unique entrants</div></div>
+        <div class="stat2"><div class="val" id="periodWinners">–</div><div class="lbl">Winners marked</div></div>
+        <div class="stat2"><div class="val" id="periodRedeemed">–</div><div class="lbl">Redeemed</div></div>
+      </div>
+
+      <div class="split-row">
+        <div>
+          <h2 class="section" style="font-size:13px; color:var(--text-mute);">Gender breakdown</h2>
+          <div class="gender-bars" id="genderBars"></div>
+        </div>
+        <div>
+          <h2 class="section" style="font-size:13px; color:var(--text-mute);">Entries per day</h2>
+          <div class="daychart" id="dayChart"></div>
+        </div>
+      </div>
+
+      <h2 class="section" style="font-size:13px; color:var(--text-mute);">Entries by location</h2>
+      <div class="loc-table-wrap"><table class="loc-table" id="locationTable"></table></div>
+
+      <h2 class="section" style="font-size:13px; color:var(--text-mute);">Last 7 days</h2>
+      <div class="stat-grid">
+        <div class="stat2"><div class="val" id="weekTotal">–</div><div class="lbl">Total entries</div></div>
+        <div class="stat2"><div class="val" id="weekUnique">–</div><div class="lbl">Unique entrants</div></div>
+      </div>
+
+      <h2 class="section" style="font-size:13px; color:var(--text-mute);">Campaign to date</h2>
+      <div class="stat-grid">
+        <div class="stat2"><div class="val" id="campTotal">–</div><div class="lbl">Total entries</div></div>
+        <div class="stat2"><div class="val" id="campUnique">–</div><div class="lbl">Unique entrants</div></div>
+        <div class="stat2"><div class="val" id="campWinners">–</div><div class="lbl">Winners marked</div></div>
+        <div class="stat2"><div class="val" id="campRedeemed">–</div><div class="lbl">Redeemed</div></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  // Same Web App URL used by index.html, redeem.html and every admin tab.
+  const API_URL = "https://script.google.com/macros/s/AKfycbxiy50rWG8Lj6u0TvPXKmfNBQUKoekOLP_OayfbTXQplmf3dVmNridruEc_JafnC__A/exec";
+
+  let sessionPin = "";
+  const loadedTabs = {}; // avoid re-fetching a tab's data every time you click it
+
+  function postToScript(payload){
+    payload.pin = payload.pin || sessionPin;
+    return fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" }, // avoids CORS preflight
+      body: JSON.stringify(payload)
+    }).then(r => r.json());
+  }
+
+  // ---------------- PIN gate ----------------
+  function checkPin(){
+    const pin = document.getElementById('pinInput').value.trim();
+    const err = document.getElementById('gateError');
+    err.classList.remove('show');
+    if(!pin) return;
+
+    document.getElementById('unlockBtn').textContent = 'Checking…';
+    document.getElementById('unlockBtn').disabled = true;
+
+    postToScript({ action: 'getFieldConfig', pin })
+      .then(res => {
+        if(res.status === 'ok'){
+          sessionPin = pin;
+          document.getElementById('gate').style.display = 'none';
+          document.getElementById('shell').classList.add('on');
+          switchTab('theme');
+        } else {
+          err.textContent = 'Incorrect PIN.';
+          err.classList.add('show');
+          document.getElementById('unlockBtn').textContent = 'Unlock';
+          document.getElementById('unlockBtn').disabled = false;
+        }
+      })
+      .catch(() => {
+        err.textContent = 'Could not reach the server. Check your connection.';
+        err.classList.add('show');
+        document.getElementById('unlockBtn').textContent = 'Unlock';
+        document.getElementById('unlockBtn').disabled = false;
+      });
+  }
+  document.getElementById('pinInput').addEventListener('keydown', e => { if(e.key === 'Enter') checkPin(); });
+
+  // ---------------- Nav ----------------
+  function switchTab(name){
+    document.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.id === 'tab-' + name));
+
+    if(!loadedTabs[name]){
+      loadedTabs[name] = true;
+      if(name === 'theme') loadTheme();
+      if(name === 'fields') loadFields();
+      if(name === 'winners') loadWinnerStats();
+      if(name === 'reports') loadReport(true);
+    }
+  }
+
+  function showMsg(id, cls, text){
+    const el = document.getElementById(id);
+    el.className = 'msg show ' + cls;
+    el.textContent = text;
+  }
+
+  // ================= THEME =================
+  const themeFields = ['campaignTitle','closingDate','primaryColor','accentColor','backgroundColor','textColor','logoUrl','heroMediaUrl','heroMediaType','backgroundMediaUrl','backgroundMediaType'];
+
+  function loadTheme(){
+    postToScript({ action: 'getTheme' }).then(res => {
+      if(res.status !== 'ok') return;
+      const t = res.theme || {};
+      themeFields.forEach(k => { if(t[k] !== undefined) document.getElementById(k).value = t[k]; });
+      // Pricing is stored in cents but shown to Lindsey in Rand.
+      const cents = Number(t.pricePerEntryCents) || 0;
+      document.getElementById('pricePerEntry').value = cents > 0 ? (cents / 100).toFixed(2) : '';
+      document.getElementById('maxEntriesPerOrder').value = t.maxEntriesPerOrder || '';
+      syncColorPickers();
+      updateThemePreview();
+    });
+  }
+
+  function syncColorPickers(){
+    ['primaryColor','accentColor','backgroundColor','textColor'].forEach(k => {
+      const text = document.getElementById(k).value;
+      const picker = document.getElementById(k + 'Picker');
+      if(/^#([0-9a-f]{3}){1,2}$/i.test(text)) picker.value = text;
+    });
+  }
+
+  ['primaryColor','accentColor','backgroundColor','textColor'].forEach(k => {
+    document.getElementById(k + 'Picker').addEventListener('input', e => {
+      document.getElementById(k).value = e.target.value;
+      updateThemePreview();
+    });
+    document.getElementById(k).addEventListener('input', () => { syncColorPickers(); updateThemePreview(); });
+  });
+  document.getElementById('campaignTitle').addEventListener('input', updateThemePreview);
+
+  function updateThemePreview(){
+    const bg = document.getElementById('backgroundColor').value || '#1B1B3A';
+    const primary = document.getElementById('primaryColor').value || '#6B4E71';
+    const accent = document.getElementById('accentColor').value || '#E8B54D';
+    const text = document.getElementById('textColor').value || '#F5F1E8';
+    const title = document.getElementById('campaignTitle').value || 'Win the giveaway';
+
+    document.getElementById('previewTicket').style.background = bg;
+    document.querySelector('.preview-stub').style.background = bg;
+    document.querySelector('.preview-stub').style.color = text;
+    document.getElementById('previewEyebrow').style.color = accent;
+    document.getElementById('previewTitleText').textContent = title;
+    document.getElementById('previewBtn').style.background = primary;
+    document.getElementById('previewBtn').style.color = text;
+  }
+
+  function saveTheme(){
+    const theme = {};
+    themeFields.forEach(k => theme[k] = document.getElementById(k).value.trim());
+
+    const rand = parseFloat(document.getElementById('pricePerEntry').value);
+    theme.pricePerEntryCents = (!isNaN(rand) && rand > 0) ? Math.round(rand * 100) : 0;
+    theme.maxEntriesPerOrder = parseInt(document.getElementById('maxEntriesPerOrder').value, 10) || 0;
+
+    const btn = document.getElementById('saveThemeBtn');
+    btn.disabled = true; btn.textContent = 'Saving…';
+
+    postToScript({ action: 'saveTheme', theme })
+      .then(res => {
+        btn.disabled = false; btn.textContent = 'Save theme';
+        if(res.status === 'ok') showMsg('themeMsg', 'msg-success', 'Theme saved. Entrants will see it on their next page load.');
+        else showMsg('themeMsg', 'msg-error', 'Could not save the theme.');
+      })
+      .catch(() => { btn.disabled = false; btn.textContent = 'Save theme'; showMsg('themeMsg', 'msg-error', 'Could not reach the server.'); });
+  }
+
+  // Sample dominant colors from an uploaded image, entirely client-side —
+  // nothing is uploaded anywhere, it's just used to suggest hex values.
+  document.getElementById('logoSample').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if(!file) return;
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const w = 80, h = 80;
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      const data = ctx.getImageData(0, 0, w, h).data;
+      const buckets = {};
+      for(let i = 0; i < data.length; i += 16){
+        const r = data[i], g = data[i+1], b = data[i+2], a = data[i+3];
+        if(a < 128) continue;
+        const key = [Math.round(r/24)*24, Math.round(g/24)*24, Math.round(b/24)*24].join(',');
+        buckets[key] = (buckets[key] || 0) + 1;
+      }
+      const top = Object.entries(buckets).sort((a,b) => b[1]-a[1]).slice(0, 6);
+      const swatchWrap = document.getElementById('swatches');
+      swatchWrap.innerHTML = '';
+      top.forEach(([key]) => {
+        const [r,g,b] = key.split(',').map(Number);
+        const hex = '#' + [r,g,b].map(x => x.toString(16).padStart(2,'0')).join('');
+        const sw = document.createElement('div');
+        sw.className = 'swatch';
+        sw.style.background = hex;
+        sw.title = 'Click to set as primary, shift-click for accent — ' + hex;
+        sw.onclick = (ev) => {
+          const target = ev.shiftKey ? 'accentColor' : 'primaryColor';
+          document.getElementById(target).value = hex;
+          syncColorPickers();
+          updateThemePreview();
+        };
+        swatchWrap.appendChild(sw);
+      });
+      URL.revokeObjectURL(img.src);
+    };
+    img.src = URL.createObjectURL(file);
+  });
+
+  // ================= FIELDS =================
+  let currentFields = [];
+  const FIELD_TYPES = ['text','email','tel','date','select','textarea'];
+
+  function loadFields(){
+    postToScript({ action: 'getFieldConfig' }).then(res => {
+      if(res.status !== 'ok') return;
+      currentFields = res.fields || [];
+      renderFields();
+    });
+  }
+
+  function renderFields(){
+    const wrap = document.getElementById('fieldsList');
+    wrap.innerHTML = currentFields.map((f, i) => `
+      <div class="field-card">
+        <label class="switch"><input type="checkbox" ${f.enabled ? 'checked' : ''} onchange="updateFieldProp(${i},'enabled',this.checked)"><span class="slider"></span></label>
+        <input type="text" value="${escapeAttr(f.label)}" placeholder="Field label" oninput="updateFieldProp(${i},'label',this.value)">
+        <select onchange="updateFieldProp(${i},'type',this.value)">
+          ${FIELD_TYPES.map(t => `<option value="${t}" ${f.type === t ? 'selected' : ''}>${t}</option>`).join('')}
+        </select>
+        <label style="display:flex; align-items:center; gap:6px; margin:0;"><input type="checkbox" style="width:auto;" ${f.required ? 'checked' : ''} onchange="updateFieldProp(${i},'required',this.checked)"> Required</label>
+        <input type="number" value="${f.order}" min="0" oninput="updateFieldProp(${i},'order',parseInt(this.value)||0)">
+        ${f.type === 'select' ? `<div class="options-row"><label style="margin:0 0 4px;">Options (comma separated)</label><input type="text" value="${escapeAttr(f.options)}" oninput="updateFieldProp(${i},'options',this.value)"></div>` : ''}
+      </div>
+    `).join('');
+  }
+
+  function updateFieldProp(i, prop, val){
+    currentFields[i][prop] = val;
+    if(prop === 'type') renderFields(); // re-render to show/hide options row
+  }
+
+  function escapeAttr(s){
+    return (s || '').toString().replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+  }
+
+  function saveFields(){
+    const btn = document.getElementById('saveFieldsBtn');
+    btn.disabled = true; btn.textContent = 'Saving…';
+
+    postToScript({ action: 'saveFieldConfig', fields: currentFields })
+      .then(res => {
+        btn.disabled = false; btn.textContent = 'Save fields';
+        if(res.status === 'ok') showMsg('fieldsMsg', 'msg-success', 'Fields saved. The entry form will pick these up on next load.');
+        else showMsg('fieldsMsg', 'msg-error', 'Could not save fields.');
+      })
+      .catch(() => { btn.disabled = false; btn.textContent = 'Save fields'; showMsg('fieldsMsg', 'msg-error', 'Could not reach the server.'); });
+  }
+
+  // ================= WINNERS =================
+  let lastPreviewWinners = [];
+  let lastCommittedWinners = [];
+  let lastDrawParams = {};
+
+  function loadWinnerStats(){
+    postToScript({ action: 'winnerStats' }).then(res => { if(res.status === 'ok') renderStats(res); });
+  }
+  function renderStats(res){
+    document.getElementById('statEligible').textContent = res.eligibleCount;
+    document.getElementById('statUnique').textContent = res.eligibleUniqueMobiles;
+    document.getElementById('statWinners').textContent = res.winnersSoFar;
+  }
+  function refreshWinnerStats(){
+    postToScript({ action: 'winnerStats' }).then(res => { if(res.status === 'ok') renderStats(res); });
+  }
+
+  function updateModeSelection(){
+    const unlimited = document.querySelector('input[name="mode"][value="unlimited"]').checked;
+    document.getElementById('optUnlimited').classList.toggle('selected', unlimited);
+    document.getElementById('optUnique').classList.toggle('selected', !unlimited);
+  }
+
+  function drawWinners(){
+    const count = parseInt(document.getElementById('countInput').value, 10);
+    const uniquePerMobile = document.querySelector('input[name="mode"][value="unique"]').checked;
+    const errEl = document.getElementById('drawError');
+    errEl.classList.remove('show');
+
+    if(!count || count < 1){ showMsg('drawError','msg-error','Enter a valid number of winners.'); return; }
+
+    const btn = document.getElementById('drawBtn');
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Drawing…';
+    lastDrawParams = { count, uniquePerMobile };
+
+    postToScript({ action: 'drawWinners', mode: 'preview', count, uniquePerMobile })
+      .then(res => {
+        btn.disabled = false; btn.textContent = 'Draw winners';
+        if(res.status !== 'ok'){ showMsg('drawError','msg-error', res.message || 'Draw failed.'); return; }
+        lastPreviewWinners = res.winners;
+        renderPreview(res.winners);
+        document.getElementById('previewCard').classList.remove('hidden');
+        document.getElementById('previewCard').scrollIntoView({ behavior: 'smooth' });
+      })
+      .catch(() => { btn.disabled = false; btn.textContent = 'Draw winners'; showMsg('drawError','msg-error','Could not reach the server.'); });
+  }
+
+  function renderPreview(winners){
+    document.getElementById('previewBody').innerHTML = winners.map(w => `
+      <tr><td>${w.ticketId}</td><td>${w.firstName} ${w.lastName}</td><td>${w.mobile || '—'}</td><td>${w.suburb || '—'}</td></tr>
+    `).join('');
+  }
+
+  function redraw(){ document.getElementById('previewCard').classList.add('hidden'); drawWinners(); }
+
+  function confirmWinners(){
+    const btn = document.getElementById('confirmBtn');
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Saving…';
+
+    postToScript({ action: 'drawWinners', mode: 'commit', count: lastDrawParams.count, uniquePerMobile: lastDrawParams.uniquePerMobile, ticketIds: lastPreviewWinners.map(w => w.ticketId) })
+      .then(res => {
+        btn.disabled = false; btn.textContent = 'Confirm & save';
+        if(res.status !== 'ok'){ alert(res.message || 'Could not save winners.'); return; }
+
+        document.getElementById('previewCard').classList.add('hidden');
+        document.getElementById('successCard').classList.remove('hidden');
+
+        let msg = res.committedCount + ' winner(s) saved to the sheet.';
+        if(res.skipped > 0) msg += ' ' + res.skipped + ' ticket(s) were skipped because their status changed since the preview.';
+        document.getElementById('successMsg').textContent = msg;
+        document.getElementById('successBody').innerHTML = res.winners.map(w => `
+          <tr><td>${w.ticketId}</td><td>${w.firstName} ${w.lastName}</td><td>${w.mobile || '—'}</td><td>${w.suburb || '—'}</td></tr>
+        `).join('');
+
+        lastCommittedWinners = res.winners;
+        refreshWinnerStats();
+      })
+      .catch(() => { btn.disabled = false; btn.textContent = 'Confirm & save'; alert('Could not reach the server.'); });
+  }
+
+  function csvEscape(val){
+    const s = (val === undefined || val === null) ? '' : String(val);
+    if(/[",\n]/.test(s)) return '"' + s.replace(/"/g,'""') + '"';
+    return s;
+  }
+  function downloadWinnersCsv(){
+    if(!lastCommittedWinners.length) return;
+    const header = ['Ticket ID','First name','Surname','Mobile','Suburb'];
+    const rows = lastCommittedWinners.map(w => [csvEscape(w.ticketId), csvEscape(w.firstName), csvEscape(w.lastName), csvEscape(w.mobile), csvEscape(w.suburb)].join(','));
+    const csv = [header.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url; link.download = 'giveaway-winners-' + new Date().toISOString().slice(0,10) + '.csv';
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+  function resetWinnersPanel(){
+    document.getElementById('successCard').classList.add('hidden');
+    document.getElementById('countInput').value = '';
+    lastPreviewWinners = []; lastDrawParams = {};
+  }
+
+  // ================= REPORTS =================
+  let currentPreset = 'today';
+  let knownGenders = [];
+
+  function setPreset(preset){
+    currentPreset = preset;
+    document.querySelectorAll('.preset-btn').forEach(b => b.classList.toggle('active', b.dataset.preset === preset));
+    document.getElementById('customDates').classList.toggle('show', preset === 'custom');
+    if(preset !== 'custom') loadReport();
+  }
+  document.getElementById('startDate').addEventListener('change', () => { if(currentPreset === 'custom') loadReport(); });
+  document.getElementById('endDate').addEventListener('change', () => { if(currentPreset === 'custom') loadReport(); });
+
+  function getRange(){
+    const now = new Date();
+    if(currentPreset === 'today'){
+      let end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0, 0);
+      if(now < end) end.setDate(end.getDate() - 1);
+      const start = new Date(end.getTime() - 24*60*60*1000);
+      return { start: start.toISOString(), end: end.toISOString() };
+    }
+    if(currentPreset === 'week'){
+      const start = new Date(now.getTime() - 7*24*60*60*1000);
+      return { start: start.toISOString(), end: now.toISOString() };
+    }
+    if(currentPreset === 'campaign') return { start: null, end: null };
+    const s = document.getElementById('startDate').value;
+    const e = document.getElementById('endDate').value;
+    return { start: s ? new Date(s + 'T00:00:00').toISOString() : null, end: e ? new Date(e + 'T23:59:59').toISOString() : null };
+  }
+
+  function loadReport(isFirstLoad){
+    const range = getRange();
+    const gender = document.getElementById('genderFilter').value;
+    const location = document.getElementById('locationFilter').value;
+    document.getElementById('loadError').classList.remove('show');
+
+    postToScript({ action: 'report', start: range.start, end: range.end, gender, location })
+      .then(data => {
+        if(data.status !== 'ok'){ document.getElementById('loadError').classList.add('show'); return; }
+
+        if(isFirstLoad){
+          const genderSel = document.getElementById('genderFilter');
+          (data.genderOptionsAvailable || []).forEach(g => { const o = document.createElement('option'); o.value = g; o.textContent = g; genderSel.appendChild(o); });
+          const locSel = document.getElementById('locationFilter');
+          (data.locationOptionsAvailable || []).forEach(l => { const o = document.createElement('option'); o.value = l; o.textContent = l; locSel.appendChild(o); });
+          knownGenders = data.genderOptionsAvailable || [];
+        }
+        renderReport(data);
+      })
+      .catch(() => { document.getElementById('loadError').classList.add('show'); });
+  }
+
+  function renderReport(data){
+    document.getElementById('updatedAt').textContent = 'Updated ' + new Date(data.generatedAt).toLocaleString();
+
+    document.getElementById('periodTotal').textContent = data.period.totalEntries;
+    document.getElementById('periodUnique').textContent = data.period.uniqueEntrants;
+    document.getElementById('periodWinners').textContent = data.period.winners;
+    document.getElementById('periodRedeemed').textContent = data.period.redeemed;
+    document.getElementById('weekTotal').textContent = data.weekly.totalEntries;
+    document.getElementById('weekUnique').textContent = data.weekly.uniqueEntrants;
+    document.getElementById('campTotal').textContent = data.campaign.totalEntries;
+    document.getElementById('campUnique').textContent = data.campaign.uniqueEntrants;
+    document.getElementById('campWinners').textContent = data.campaign.winners;
+    document.getElementById('campRedeemed').textContent = data.campaign.redeemed;
+
+    const genderEl = document.getElementById('genderBars');
+    const genderEntries = Object.entries(data.period.genderBreakdown || {});
+    if(genderEntries.length === 0){
+      genderEl.innerHTML = '<div class="empty">No entries in this period.</div>';
+    } else {
+      const max = Math.max(...genderEntries.map(e => e[1]));
+      genderEl.innerHTML = genderEntries.map(([g,count]) => `
+        <div class="gbar-row"><div class="gbar-top"><span>${g}</span><span class="num">${count}</span></div>
+        <div class="gbar-track"><div class="gbar-fill" style="width:${max ? (count/max*100) : 0}%"></div></div></div>
+      `).join('');
+    }
+
+    const dayEl = document.getElementById('dayChart');
+    const days = data.period.entriesPerDay || [];
+    if(days.length === 0){
+      dayEl.innerHTML = '<div class="empty">No entries in this period.</div>';
+    } else {
+      const max = Math.max(...days.map(d => d.entries));
+      dayEl.innerHTML = days.map(d => `
+        <div class="daybar-row"><div class="daybar-date">${d.date}</div>
+        <div class="daybar-track"><div class="daybar-fill" style="width:${max ? (d.entries/max*100) : 0}%"></div></div>
+        <div class="daybar-count num">${d.entries}</div></div>
+      `).join('');
+    }
+
+    renderLocationTable(data.period.locationBreakdown || []);
+  }
+
+  function renderLocationTable(locations){
+    const table = document.getElementById('locationTable');
+    if(locations.length === 0){
+      table.innerHTML = '<tbody><tr><td class="empty" style="text-align:left;border-bottom:none">No entries in this period.</td></tr></tbody>';
+      return;
+    }
+    const genderCols = knownGenders.length ? knownGenders : Array.from(new Set(locations.flatMap(l => Object.keys(l.genders || {}))));
+    const head = '<thead><tr><th>Location</th><th>Total</th>' + genderCols.map(g => `<th>${g}</th>`).join('') + '</tr></thead>';
+    const body = '<tbody>' + locations.map(l => {
+      const cells = genderCols.map(g => `<td class="num">${(l.genders && l.genders[g]) || 0}</td>`).join('');
+      return `<tr onclick="drillIntoLocation('${l.location.replace(/'/g, "\\'")}')"><td>${l.location}</td><td class="num" style="color:var(--accent)">${l.total}</td>${cells}</tr>`;
+    }).join('') + '</tbody>';
+    table.innerHTML = head + body;
+  }
+
+  function drillIntoLocation(location){
+    document.getElementById('locationFilter').value = location;
+    loadReport();
+  }
+</script>
+</body>
+</html>
