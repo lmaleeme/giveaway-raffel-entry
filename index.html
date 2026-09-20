@@ -38,7 +38,8 @@
     justify-content:center;
     padding:40px 16px;
   }
-  .wrap{ width:100%; max-width:880px; position:relative; z-index:1; }
+  .wrap{ width:100%; max-width:880px; position:relative; z-index:1; opacity:0; transition:opacity 0.25s ease; }
+  .wrap.ready{ opacity:1; }
   .logo-wrap{ display:none; text-align:center; margin-bottom:18px; }
   .logo-wrap.on{ display:block; }
   .logo-wrap img{ max-height:56px; max-width:220px; }
@@ -506,7 +507,15 @@
   // A normal (non no-cors) fetch, same pattern proven out by redeem.html/winner.html/
   // report.html: Apps Script's ContentService JSON response is readable cross-origin.
   async function loadPublicConfig(){
-    if(!CONFIG.SHEET_ENDPOINT_URL || CONFIG.SHEET_ENDPOINT_URL.indexOf('PASTE_YOUR') !== -1) return;
+    // Failsafe: reveal the page after a short wait regardless of whether the
+    // config fetch below has finished — a slow/failed request should never
+    // leave the page permanently hidden.
+    const revealTimeout = setTimeout(revealPage, 1200);
+
+    if(!CONFIG.SHEET_ENDPOINT_URL || CONFIG.SHEET_ENDPOINT_URL.indexOf('PASTE_YOUR') !== -1){
+      revealPage();
+      return;
+    }
     try{
       const res = await fetch(CONFIG.SHEET_ENDPOINT_URL, {
         method: 'POST',
@@ -521,6 +530,12 @@
     }catch(e){
       // Config fetch failing shouldn't block entries — the form still works with defaults.
     }
+    clearTimeout(revealTimeout);
+    revealPage();
+  }
+
+  function revealPage(){
+    document.querySelector('.wrap').classList.add('ready');
   }
 
   function applyTheme(theme){
