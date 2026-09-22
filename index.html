@@ -960,6 +960,7 @@
     grid.onpointerdown = (e) => {
       const cellEl = e.target.closest('.puzzle-cell');
       if(!cellEl || puzzleSolved) return;
+      e.preventDefault();
       const r = Number(cellEl.dataset.r), c = Number(cellEl.dataset.c);
 
       // Resuming an existing path: only allowed by pressing down on its current end.
@@ -977,10 +978,16 @@
       paintPath();
     };
 
-    grid.onpointerenter = () => {}; // placeholder so delegated pointerover below is the real handler
-    grid.onpointerover = (e) => {
+    // Touch devices implicitly "capture" the pointer to whichever cell you first
+    // touched — pointerover/pointerenter never fire for the other cells your
+    // finger moves across the way they do with a mouse. pointermove + checking
+    // the actual coordinate underneath the finger (elementFromPoint) works
+    // identically for mouse and touch, so that's used instead of hover events.
+    grid.onpointermove = (e) => {
       if(!puzzleDragging || puzzleSolved) return;
-      const cellEl = e.target.closest('.puzzle-cell');
+      e.preventDefault();
+      const el = document.elementFromPoint(e.clientX, e.clientY);
+      const cellEl = el ? el.closest('.puzzle-cell') : null;
       if(!cellEl) return;
       const r = Number(cellEl.dataset.r), c = Number(cellEl.dataset.c);
       handlePuzzleHover(r, c);
