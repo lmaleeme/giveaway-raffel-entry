@@ -222,6 +222,32 @@
   .loc-status.on{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
   .loc-clear{ background:none; border:none; color:var(--ink-soft); font-size:11px; cursor:pointer; text-decoration:underline; font-family:'Inter', sans-serif; }
 
+  .secondary-btn{
+    background:transparent; color:var(--plum); border:1.5px solid var(--plum);
+    border-radius:8px; padding:14px; font-size:15px; font-weight:500; cursor:pointer;
+    font-family:'Inter', sans-serif;
+  }
+  .secondary-btn:hover{ background:rgba(107,78,113,0.08); }
+
+  .puzzle-grid{
+    display:grid; gap:4px; margin:0 auto 14px; width:100%; max-width:340px; aspect-ratio:1/1;
+    touch-action:none; user-select:none;
+  }
+  .puzzle-cell{
+    background:#FFFDF9; border:1.5px solid #DAD4C4; border-radius:6px;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'IBM Plex Mono', monospace; font-size:15px; font-weight:600; color:var(--ink-soft);
+    position:relative; cursor:pointer;
+  }
+  .puzzle-cell.filled{ background:var(--plum); border-color:var(--plum); }
+  .puzzle-cell.filled .puzzle-num{ color:#fff; }
+  .puzzle-cell.filled.start-cell{ background:var(--gold-dim); border-color:var(--gold-dim); }
+  .puzzle-num{ pointer-events:none; }
+  .puzzle-status{
+    display:flex; align-items:center; justify-content:space-between;
+    font-size:12px; color:var(--ink-soft); margin-bottom:4px;
+  }
+
   .consent{
     display:flex;
     align-items:flex-start;
@@ -371,9 +397,29 @@
           <p class="error">Please agree to both before entering.</p>
         </div>
 
-        <button type="submit" class="submit" id="submitBtn">Pay &amp; enter raffle</button>
-        <p class="submit-msg err" id="submitErr" style="display:none;">Something went wrong starting your payment. Please try again.</p>
+        <button type="button" class="submit" id="submitBtn">Continue</button>
+        <p class="submit-msg err" id="submitErr" style="display:none;">Please check the details above and try again.</p>
       </form>
+    </div>
+
+    <div class="form-side hidden" id="puzzleSide">
+      <h2>Quick skill test</h2>
+      <p class="hint">Connect the dots in order (1 → 2 → 3…), filling every square, without crossing your own path. This must be solved correctly before payment — it's what makes this a skill-based competition.</p>
+
+      <div id="puzzleGrid" class="puzzle-grid"></div>
+
+      <div class="puzzle-status">
+        <span id="puzzleAttemptsText">Attempts: 0</span>
+        <button type="button" class="loc-clear" id="puzzleResetBtn">Reset path</button>
+      </div>
+
+      <p class="submit-msg" id="puzzleSolvedMsg" style="display:none; color:var(--plum); font-weight:600;">Solved! You can now proceed to payment.</p>
+
+      <div class="row" style="margin-top:16px;">
+        <button type="button" class="secondary-btn" id="puzzleBackBtn">Back</button>
+        <button type="button" class="submit" id="payBtn" disabled>Pay &amp; enter raffle</button>
+      </div>
+      <p class="submit-msg err" id="payErr" style="display:none;">Something went wrong starting your payment. Please try again.</p>
     </div>
 
     <div class="success" id="processingPanel">
@@ -769,8 +815,9 @@
   document.getElementById('agreeRules').addEventListener('change', validate);
   document.getElementById('agreePrivacy').addEventListener('change', validate);
 
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
+  // Step 1 -> Step 2: "Continue" validates details, then reveals the puzzle.
+  form.addEventListener('submit', (e) => { e.preventDefault(); });
+  submitBtn.addEventListener('click', () => {
     submitErr.style.display = 'none';
     if(!validate()) return;
 
@@ -780,6 +827,240 @@
       return;
     }
 
+    document.getElementById('formSide').classList.add('hidden');
+    document.getElementById('puzzleSide').classList.remove('hidden');
+    initPuzzle();
+  });
+
+  document.getElementById('puzzleBackBtn').addEventListener('click', () => {
+    document.getElementById('puzzleSide').classList.add('hidden');
+    document.getElementById('formSide').classList.remove('hidden');
+  });
+
+  // ================= SKILL-TESTING PUZZLE (Zip-style path puzzle) =================
+  // Generates a random Hamiltonian path covering every cell of an NxN grid, then
+  // marks a handful of points along that path as numbered checkpoints. The
+  // player must redraw a path that covers every cell and hits the checkpoints
+  // in order 1, 2, 3… — this is what makes entry a genuine skill test rather
+  // than a pure game of chance, which is what South African promotional
+  // competition rules require for a paid entry to be run legally.
+  const PUZZLE_SIZE = 5;
+  const PUZZLE_CHECKPOINTS = 5;
+  let puzzleData = null;      // { size, numberedCells: [{r,c,num}], finalCell: {r,c} }
+  let puzzlePath = [];        // array of {r,c} — the player's current drawn path
+  let puzzleAttempts = 0;
+  let puzzleStartTime = 0;
+  let puzzleSolved = false;
+  let puzzleDragging = false;
+
+  function generatePuzzle(size, numCheckpoints){
+    const total = size * size;
+    const dirs = [[0,1],[0,-1],[1,0],[-1,0]];
+    const key = (r,c) => r * size + c;
+
+    for(let attempt = 0; attempt < 300; attempt++){
+      const visited = new Array(total).fill(false);
+      const startR = Math.floor(Math.random() * size);
+      const startC = Math.floor(Math.random() * size);
+      const path = [[startR, startC]];
+      visited[key(startR, startC)] = true;
+
+      function onwardCount(r, c, vis){
+        let n = 0;
+        for(const [dr, dc] of dirs){
+          const nr = r + dr, nc = c + dc;
+          if(nr >= 0 && nr < size && nc >= 0 && nc < size && !vis[key(nr, nc)]) n++;
+        }
+        return n;
+      }
+
+      function dfs(r, c, depth){
+        if(depth === total) return true;
+        let neighbors = [];
+        for(const [dr, dc] of dirs){
+          const nr = r + dr, nc = c + dc;
+          if(nr >= 0 && nr < size && nc >= 0 && nc < size && !visited[key(nr, nc)]) neighbors.push([nr, nc]);
+        }
+        for(let i = neighbors.length - 1; i > 0; i--){
+          const j = Math.floor(Math.random() * (i + 1));
+          [neighbors[i], neighbors[j]] = [neighbors[j], neighbors[i]];
+        }
+        neighbors.sort((a, b) => onwardCount(a[0], a[1], visited) - onwardCount(b[0], b[1], visited));
+        for(const [nr, nc] of neighbors){
+          visited[key(nr, nc)] = true;
+          path.push([nr, nc]);
+          if(dfs(nr, nc, depth + 1)) return true;
+          path.pop();
+          visited[key(nr, nc)] = false;
+        }
+        return false;
+      }
+
+      if(dfs(startR, startC, 1)){
+        const checkpoints = [];
+        for(let i = 0; i < numCheckpoints; i++){
+          checkpoints.push(Math.round(i * (total - 1) / (numCheckpoints - 1)));
+        }
+        const uniqueIdx = [...new Set(checkpoints)];
+        const numberedCells = uniqueIdx.map((idx, n) => ({ r: path[idx][0], c: path[idx][1], num: n + 1 }));
+        return { size, numberedCells, finalCell: { r: path[total - 1][0], c: path[total - 1][1] } };
+      }
+    }
+    return null; // exceedingly unlikely for a 5x5 grid, but handled just in case
+  }
+
+  function initPuzzle(){
+    puzzleData = generatePuzzle(PUZZLE_SIZE, PUZZLE_CHECKPOINTS);
+    if(!puzzleData){
+      // Fallback: should never happen in practice for a 5x5 grid, but if it
+      // somehow does, just retry once more before giving up gracefully.
+      puzzleData = generatePuzzle(PUZZLE_SIZE, PUZZLE_CHECKPOINTS);
+    }
+    puzzlePath = [];
+    puzzleAttempts = 0;
+    puzzleSolved = false;
+    puzzleStartTime = Date.now();
+    document.getElementById('puzzleSolvedMsg').style.display = 'none';
+    document.getElementById('payBtn').disabled = true;
+    updateAttemptsText();
+    renderPuzzleGrid();
+  }
+
+  function updateAttemptsText(){
+    document.getElementById('puzzleAttemptsText').textContent = 'Attempts: ' + puzzleAttempts;
+  }
+
+  function cellNumber(r, c){
+    const found = puzzleData.numberedCells.find(n => n.r === r && n.c === c);
+    return found ? found.num : null;
+  }
+
+  function renderPuzzleGrid(){
+    const grid = document.getElementById('puzzleGrid');
+    grid.style.gridTemplateColumns = `repeat(${puzzleData.size}, 1fr)`;
+    grid.innerHTML = '';
+    for(let r = 0; r < puzzleData.size; r++){
+      for(let c = 0; c < puzzleData.size; c++){
+        const cell = document.createElement('div');
+        cell.className = 'puzzle-cell';
+        cell.dataset.r = r;
+        cell.dataset.c = c;
+        const num = cellNumber(r, c);
+        if(num){
+          const span = document.createElement('span');
+          span.className = 'puzzle-num';
+          span.textContent = num;
+          cell.appendChild(span);
+        }
+        grid.appendChild(cell);
+      }
+    }
+    paintPath();
+
+    grid.onpointerdown = (e) => {
+      const cellEl = e.target.closest('.puzzle-cell');
+      if(!cellEl || puzzleSolved) return;
+      const r = Number(cellEl.dataset.r), c = Number(cellEl.dataset.c);
+
+      // Resuming an existing path: only allowed by pressing down on its current end.
+      if(puzzlePath.length > 0){
+        const last = puzzlePath[puzzlePath.length - 1];
+        if(last.r === r && last.c === c){ puzzleDragging = true; return; }
+      }
+
+      // Otherwise this starts a fresh attempt — must start on checkpoint 1.
+      if(cellNumber(r, c) !== 1){ return; }
+      puzzlePath = [{ r, c }];
+      puzzleAttempts++;
+      updateAttemptsText();
+      puzzleDragging = true;
+      paintPath();
+    };
+
+    grid.onpointerenter = () => {}; // placeholder so delegated pointerover below is the real handler
+    grid.onpointerover = (e) => {
+      if(!puzzleDragging || puzzleSolved) return;
+      const cellEl = e.target.closest('.puzzle-cell');
+      if(!cellEl) return;
+      const r = Number(cellEl.dataset.r), c = Number(cellEl.dataset.c);
+      handlePuzzleHover(r, c);
+    };
+
+    document.addEventListener('pointerup', () => { puzzleDragging = false; }, { once: false });
+  }
+
+  function handlePuzzleHover(r, c){
+    if(puzzlePath.length === 0) return;
+    const last = puzzlePath[puzzlePath.length - 1];
+
+    // Retract: hovering the second-to-last cell removes the last one (undo).
+    if(puzzlePath.length > 1){
+      const prev = puzzlePath[puzzlePath.length - 2];
+      if(prev.r === r && prev.c === c){
+        puzzlePath.pop();
+        paintPath();
+        return;
+      }
+    }
+
+    // Already in the path elsewhere — ignore.
+    if(puzzlePath.some(p => p.r === r && p.c === c)) return;
+
+    // Must be orthogonally adjacent to the current path end.
+    const dr = Math.abs(r - last.r), dc = Math.abs(c - last.c);
+    if(!((dr === 1 && dc === 0) || (dr === 0 && dc === 1))) return;
+
+    // If the target cell is numbered, it must be exactly the next number in sequence.
+    const num = cellNumber(r, c);
+    if(num){
+      const lastNumInPath = puzzlePath.reduce((m, p) => Math.max(m, cellNumber(p.r, p.c) || 0), 0);
+      if(num !== lastNumInPath + 1) return; // out of order — block this move
+    }
+
+    puzzlePath.push({ r, c });
+    paintPath();
+    checkPuzzleSolved();
+  }
+
+  function paintPath(){
+    document.querySelectorAll('.puzzle-cell').forEach(el => el.classList.remove('filled', 'start-cell'));
+    puzzlePath.forEach((p, i) => {
+      const el = document.querySelector(`.puzzle-cell[data-r="${p.r}"][data-c="${p.c}"]`);
+      if(el){
+        el.classList.add('filled');
+        if(i === 0) el.classList.add('start-cell');
+      }
+    });
+  }
+
+  function checkPuzzleSolved(){
+    const total = puzzleData.size * puzzleData.size;
+    if(puzzlePath.length !== total) return;
+    const last = puzzlePath[puzzlePath.length - 1];
+    if(last.r !== puzzleData.finalCell.r || last.c !== puzzleData.finalCell.c) return;
+
+    puzzleSolved = true;
+    puzzleDragging = false;
+    document.getElementById('puzzleSolvedMsg').style.display = 'block';
+    document.getElementById('payBtn').disabled = false;
+  }
+
+  document.getElementById('puzzleResetBtn').addEventListener('click', () => {
+    if(puzzleSolved) return; // no need to reset once solved
+    puzzlePath = [];
+    puzzleAttempts++;
+    updateAttemptsText();
+    paintPath();
+  });
+
+  // Step 2 -> Payment: only reachable once the puzzle is genuinely solved.
+  const payBtn = document.getElementById('payBtn');
+  const payErr = document.getElementById('payErr');
+
+  payBtn.addEventListener('click', async () => {
+    if(!puzzleSolved) return;
+    payErr.style.display = 'none';
+
     const payload = {
       action: 'createOrder',
       firstName: firstName.value.trim(),
@@ -787,7 +1068,10 @@
       mobile: mobile.value.trim(),
       gender: gender.value,
       quantity: parseInt(quantityInput.value, 10),
-      pageUrl: window.location.href
+      pageUrl: window.location.href,
+      puzzleSolved: true,
+      puzzleTimeMs: Date.now() - puzzleStartTime,
+      puzzleAttempts: puzzleAttempts
     };
 
     dynamicFieldDefs.forEach(f => {
@@ -795,8 +1079,8 @@
       payload[f.key] = el ? el.value.trim() : '';
     });
 
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Starting payment…';
+    payBtn.disabled = true;
+    payBtn.textContent = 'Starting payment…';
 
     try{
       const res = await fetch(CONFIG.SHEET_ENDPOINT_URL, {
@@ -807,23 +1091,22 @@
       const data = await res.json();
 
       if(data.status === 'ok' && data.redirectUrl){
-        // Leaving the page entirely — Yoco's hosted checkout takes over from here.
         window.location.href = data.redirectUrl;
         return;
       }
       if(data.status === 'closed'){
-        updateClosingState(); // will already reflect closed since server agrees
+        updateClosingState();
         return;
       }
-      submitErr.textContent = data.message || 'Could not start payment. Please try again.';
-      submitErr.style.display = 'block';
+      payErr.textContent = data.message || 'Could not start payment. Please try again.';
+      payErr.style.display = 'block';
     }catch(err){
-      submitErr.textContent = 'Could not reach the server. Please check your connection and try again.';
-      submitErr.style.display = 'block';
+      payErr.textContent = 'Could not reach the server. Please check your connection and try again.';
+      payErr.style.display = 'block';
     }
 
-    submitBtn.disabled = false;
-    submitBtn.textContent = 'Pay & enter raffle';
+    payBtn.disabled = false;
+    payBtn.textContent = 'Pay & enter raffle';
   });
 
   // --- Post-payment: processing / cancelled / paid ---
